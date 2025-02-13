@@ -1,4 +1,4 @@
-# Figure 2
+# Figure 3
 
 > **_NOTE:_** This plot omits the non-human primate CFU and flowcytometry data
 > scatter plot layer shown in the publication because we do not have permission
@@ -79,7 +79,7 @@ df_std <-
 df_std
 ```
 
-```{r figure-02-50k-sim}
+```{r figure-03-50k-sim}
 #| cache: true
 #| dependson: -1
 df_std %>%

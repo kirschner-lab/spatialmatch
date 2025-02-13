@@ -1,4 +1,4 @@
-# Figure 7
+# Figure 8
 
 ```{r imports}
 #| cache: false
@@ -8,6 +8,7 @@ library(hdf5r)
 library(tidyr)
 library(stringr)
 library(forcats)
+library(purrr)
 library(Matrix)  # spMatrix
 library(Rglpk)   # Rglpk_solve_LP
 library(ggrepel) # geom_text_repel
@@ -21,7 +22,7 @@ library(ggrepel) # geom_text_repel
 source("R/config.R")
 ```
 
-```{r figure-07-prcc}
+```{r figure-08-prcc}
 #| cache: true
 #| dependson: -1
 #| fig.width: 9
@@ -79,6 +80,7 @@ df_prcc <-
                               "@time",
                               "HalfSat",
                               "nrIntMtb",
+                              "threshold",
                               "@kApoptosis$"),
                             collapse = "|"))) %>%
   ## Rename parameters to be more legible.
@@ -90,21 +92,21 @@ df_prcc <-
           "Recruit.Prob.Mac/@maxRecProb",
         "Regulatory T cell recruitment" =
           "Recruit.Prob.Tcell.Treg/@maxRecProb",
-        "IFN-γ producing T cell recruitment" =
+        "IFN-γ+ T cell recruitment" =
           "Recruit.Prob.Tcell.Tgam/@maxRecProb",
         "Cytotoxic T cell recruitment" =
           "Recruit.Prob.Tcell.Tcyt/@maxRecProb",
-        "Effector IFN-γ producing T cell probability" =
+        "% Mtb-specific IFN-γ+ T cell" =
           "Recruit.Prob.Tcell.Tgam/@probCognate",
-        "Macrophage chemokine recruitment" =
-          "Recruit.Prob.Mac/@thresholdRecChemokine",
-        "IFN-γ producing T cell chemokine recruitment" =
-          "Recruit.Prob.Tcell.Tgam/@thresholdRecChemokine",
-        "Regulatory T cell chemokine recruitment" =
-          "Recruit.Prob.Tcell.Treg/@thresholdRecChemokine",
-        "TNF-induced apoptosis" =
-          "Core/@thresholdApoptosisTNF",
-        "TNF from IFN-γ producing T cells" =
+        ## "Macrophage chemokine recruitment" =
+        ##   "Recruit.Prob.Mac/@thresholdRecChemokine",
+        ## "IFN-γ+ T cell chemokine recruitment" =
+        ##   "Recruit.Prob.Tcell.Tgam/@thresholdRecChemokine",
+        ## "Regulatory T cell chemokine recruitment" =
+        ##   "Recruit.Prob.Tcell.Treg/@thresholdRecChemokine",
+        ## "TNF-induced apoptosis" =
+        ##   "Core/@thresholdApoptosisTNF",
+        "TNF from IFN-γ+ T cells" =
           "Core.Tcell.Tgam/@probTNFProducer",
         "TNF from cytotoxic T cells" =
           "Core.Tcell.Tcyt/@probTNFProducer",
@@ -127,7 +129,7 @@ df_prcc <-
         "Granuloma diameter" = "MaxGranulomaDiameter",
         "Caseum-granuloma area ratio" = "CaseumRatio",
         "Macrophages" = "Mac ScaledRing",
-        "IFN-γ producing T cells" = "Tgam ScaledRing",
+        "IFN-γ+ T cells" = "Tgam ScaledRing",
         "Cytotoxic T cells" = "Tcyt ScaledRing",
         "Regulatory T cells" = "Treg ScaledRing",
         "CFU" = "TotMtbInGranScaledRing"))
@@ -224,21 +226,21 @@ mat_adjacent <-
   as.matrix()
 
 ## Assign the minimum number of colors without intersections or adjacencies.
-params <- df_prcc_signif %>% pull(param) %>% as.integer() %>% unique()
-lookup <- function(x) map_vec(x, ~ which(params %in% .x))
-constraints_intersect <-
-  spMatrix(nrow = length(params),
-           ncol = length(params),
-           i = lookup(mat_intersect[, 1]),
-           j = lookup(mat_intersect[, 2]),
-           x = rep(1L, nrow(mat_intersect))) %>%
-  .[rowSums(.) != 0, ]
-alldifferent <-
-  Rglpk_solve_LP(obj = rep(1L, ncol(constraints_intersect)),
-                 mat = constraints_intersect,
-                 dir = rep("==", nrow(constraints_intersect)),
-                 rhs = rep(1L, nrow(constraints_intersect)),
-                 all.bin = TRUE)
+## params <- df_prcc_signif %>% pull(param) %>% as.integer() %>% unique()
+## lookup <- function(x) map_vec(x, ~ which(params %in% .x))
+## constraints_intersect <-
+##   spMatrix(nrow = length(params),
+##            ncol = length(params),
+##            i = lookup(mat_intersect[, 1]),
+##            j = lookup(mat_intersect[, 2]),
+##            x = rep(1L, nrow(mat_intersect))) %>%
+##   .[rowSums(.) != 0, ]
+## alldifferent <-
+##   Rglpk_solve_LP(obj = rep(1L, ncol(constraints_intersect)),
+##                  mat = constraints_intersect,
+##                  dir = rep("==", nrow(constraints_intersect)),
+##                  rhs = rep(1L, nrow(constraints_intersect)),
+##                  all.bin = TRUE)
 
   ## ## Add color.
   ## group_by(param) %>%
@@ -265,7 +267,7 @@ df_prcc %>%
     ## the geom_text_repel labels to be outside the plot area.
     plot.margin = unit(c(0.1, 6, 0.1, 0.1), "cm"),
     ## Increase spacing between facet columns.
-    panel.spacing.x = unit(11, "lines"),
+    panel.spacing.x = unit(8, "lines"),
     ## X-axis title centering looks bad after ajusting panel spacing, so left
     ## align instead.
     axis.title.x = element_text(hjust = 0.07)) +

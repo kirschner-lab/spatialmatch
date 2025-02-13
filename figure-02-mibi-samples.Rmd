@@ -1,0 +1,110 @@
+# Figure 2
+
+```{r imports}
+#| cache: false
+#| message: false
+library(readr)
+library(dplyr)
+library(stringr)
+library(forcats)
+library(ggplot2)
+```
+
+```{r config}
+#| cache: true
+source("R/config.R")
+```
+
+```{r prepare-inputs}
+#| cache: true
+#| dependson: -1
+```
+
+```{r figure-02-mibi-samples}
+#| cache: true
+#| dependson: -1
+path_mibi_meta <- file.path(dir_mibi, "LEAP_granulomas_metadata.csv")
+## FIXME: use updated spreadsheet.
+path_mibi_cells <-
+  file.path(dir_mibi,
+            "LEAP_granulomas_all_cells_phenotype_and_position.csv")
+df_meta <-
+  read_csv(path_mibi_meta, show_col_types = FALSE) %>%
+  filter(Multiple.foci. == "0",
+         Necrotic == "1") %>%
+  rename_with(tolower)
+lookup <- setNames(0:7, c(0, round(1:7 / 7, digits = 1)))
+days <-
+  df_meta %>%
+  distinct(weeks_necropsy) %>%
+  mutate(decimal = as.character(round(weeks_necropsy %% 1, 1)),
+         days_necropsy = 7 * floor(weeks_necropsy) + lookup[decimal]) %>%
+  pull(days_necropsy) %>%
+  unique() %>%
+  setNames(NULL) %>%
+  sort()
+samples <- df_meta$sample
+gr_mac <- c(
+  "CD206+Mac",
+  "CD11c+CD163+DC",
+  "CD14+MonoMac",
+  "CD163+Mac",
+  "CD11c+DCMac",
+  "CD14+CD11c+Mac",
+  "CD68+Mac",
+  "FN1+Mac"
+)
+df_cells <-
+  read_csv(path_mibi_cells, show_col_types = FALSE) %>%
+  ## Shorten centroid column names to x and y.
+  rename_with(~ str_extract(.x, "(.)$"), starts_with("centroid")) %>%
+  ## Only choose granulomas with a single necrotic core.
+  filter(sample %in% samples) %>%
+  mutate(agent = case_when(
+    cell_type %in% gr_mac ~ "Macrophages",
+    cell_type == "CD4+Tcell" ~ "CD4+ T cells",
+    cell_type == "CD8+Tcell" ~ "CD8+ T cells",
+    cell_type == "APC" ~ "Dendritic cells",
+    str_detect(cell_type, "Fibro$") ~ "Fibroblasts",
+    str_detect(cell_type, "Neutrophil") ~ "Neutrophils",
+    .default = "Other cells"))
+names <-
+  c("Macrophages", "CD4+ T cells", "CD8+ T cells", "Dendritic cells",
+    "Fibroblasts", "Neutrophils", "Other cells")
+colors <- scales::hue_pal()(
+  length(names) - 1) %>%
+  ## Other (O) agents not represented in GranSim should be gray.
+  append("#BBBBBB")
+colors <- setNames(colors[c(5, 3, 1, 2, 6, 4, 7)], names)
+set.seed(123) # for sample_n()
+df_cells_sub <-
+  df_cells %>%
+  group_by(sample) %>%
+  sample_n(1000) %>%
+  ungroup()
+## Plot image of binned agents.
+df_cells_sub %>%
+  mutate(agent = factor(agent, names)) %>%
+  ggplot(aes(x, y, color = agent)) +
+  facet_wrap(~ fct_reorder(sample, as.integer(str_extract(sample, "\\d+"))),
+             nrow = 4, scales = "free") +
+  geom_point(size = 0.5) +
+  scale_color_manual(values = colors) +
+  theme_bw() +
+  theme(aspect.ratio = 1,
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.text.align = 0) +
+  labs(color = "Agent") +
+  ## Increase size of points in legend https://stackoverflow.com/a/15059196
+  guides(color = guide_legend(override.aes = list(size = 5)))
+```
+
+```{r session-info}
+#| cache: false
+sessionInfo()
+```
