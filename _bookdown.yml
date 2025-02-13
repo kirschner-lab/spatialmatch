@@ -1,0 +1,7 @@
+new_session: yes
+rmd_files:
+- index.Rmd
+- README.md
+- figure-02-50k-sim.Rmd
+- figure-03-clust-pred-features.Rmd
+- figure-07-prcc.Rmd

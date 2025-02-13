@@ -1,0 +1,105 @@
+# Figure 2
+
+> **_NOTE:_** This plot omits the non-human primate CFU and flowcytometry data
+> scatter plot layer shown in the publication because we do not have permission
+> to redistribute that data.
+
+```{r imports}
+#| cache: false
+#| message: false
+library(readr)     # read_csv
+library(dplyr)
+library(snakecase) # to_snake_case
+library(tidyr)     # pivot_longer
+library(forcats)   # fct
+library(stringr)   # str_remove
+library(ggplot2)
+```
+
+```{r config}
+#| cache: true
+#| cache.vars:
+#| - dir_data
+#| - ticks_per_day
+source("R/config.R")
+```
+
+```{r prepare-inputs}
+#| cache: true
+#| dependson: -1
+file_stat <-
+  file.path(dir_data,
+            "2024-07-19-A-gr-50k",
+            "output-lhs-stat-cols-35.csv.gz")
+
+df_runs <-
+  ## Read in the data with minimal changes.
+  read_csv(file_stat,
+           col_types = c(exp = "c", time = "i"),
+           show_col_types = FALSE) %>%
+  ## Convert ticks to days.
+  mutate(time = time / ticks_per_day)
+df_runs
+
+## Labels to remap the outputs for plotting.
+outputs <-
+  c(mac_scaled_ring = "Macrophages",
+    tc_scaled_ring = "T cells",
+    tot_mtb_in_gran_scaled_ring = "Mtb")
+df_std <-
+  df_runs %>%
+  ## Remove spaces and dots from column names.
+  rename_with(to_snake_case) %>%
+  ## Classify by Mtb level.
+  group_by(exp) %>%
+  mutate(classif =
+         case_when(
+           tot_mtb_in_gran_scaled_ring[time == max(time)] == 0
+           ~ "Sterile",
+           max(diff(tot_mtb_in_gran_scaled_ring[time >= max(time) - 20L &
+                                                  time <= max(time)])) < 50
+           ~ "Controlling",
+           .default = "Active"
+         ) %>%
+         fct(levels = c("Active", "Sterile", "Controlling")),
+         .before = time) %>%
+  ungroup() %>%
+  ## Sum T cell counts.
+  mutate(exp = fct(exp),
+         tc_scaled_ring = c(tgam_scaled_ring +
+                              tcyt_scaled_ring +
+                              treg_scaled_ring)) %>%
+  ## Subset to relevant data.
+  dplyr::select(exp:time, ends_with("ring")) %>%
+  ## Convert to long format for ploting.
+  pivot_longer(-c(exp:time), names_to = "output") %>%
+  dplyr::filter(output %in% names(outputs)) %>%
+  ## Use labels.
+  mutate(output = outputs[output])
+df_std
+```
+
+```{r figure-02-50k-sim}
+#| cache: true
+#| dependson: -1
+df_std %>%
+  ggplot(aes(x = time,
+             y = value)) +
+  facet_grid(~ output,
+             scales = "free_y") +
+  labs(x = "Day (post-infection)",
+       y = "Cell counts",
+       color = "Classification") +
+  theme_bw() +
+  scale_y_log10(labels = scales::label_log()) +
+  ## Reorder the legend to match how the classifications appear in the plot.
+  scale_color_discrete(breaks = c("Active", "Controlling", "Sterile")) +
+  geom_line(linewidth = 0.1,
+            aes(group = exp,
+                color = classif))
+```
+
+```{r session-info}
+#| cache: false
+sessionInfo()
+```

@@ -1,0 +1,25 @@
+Package: spatialmatch
+Title: Figures And Code For ABM Spatial Matching Paper
+Version: 0.0.0.9000
+Authors@R:
+    person("Pariksheet", "Nanda", NULL, "pnanda@umich.edu",
+           role = c("aut", "cre"), comment = c(ORCID = "0000-0001-9726-4552"))
+Description: RMarkdown documents to reproduce the results and supplementary
+    figures for research publication.  Each figure self-contained with explicit
+    inputs and library imports.
+License: Apache License (>= 2)
+Encoding: UTF-8
+Suggests:
+    dplyr,
+    forcats,
+    ggalign,
+    ggplot2,
+    ggrepel,
+    hdf5r,
+    Matrix,
+    readr,
+    Rglpk,
+    shadowtext,
+    snakecase,
+    stringr,
+    tidyr

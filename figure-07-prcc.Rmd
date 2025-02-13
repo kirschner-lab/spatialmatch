@@ -1,0 +1,307 @@
+# Figure 7
+
+```{r imports}
+#| cache: false
+#| message: false
+library(dplyr)
+library(hdf5r)
+library(tidyr)
+library(stringr)
+library(forcats)
+library(Matrix)  # spMatrix
+library(Rglpk)   # Rglpk_solve_LP
+library(ggrepel) # geom_text_repel
+```
+
+```{r prepare-inputs}
+#| cache: true
+#| cache.vars:
+#| - dir_data
+#| - ticks_per_day
+source("R/config.R")
+```
+
+```{r figure-07-prcc}
+#| cache: true
+#| dependson: -1
+#| fig.width: 9
+#| fig.height: 9
+file_prcc <-
+  file.path(dir_data,
+            "2024-12-25-A-ot-prcc-50k",
+            "prcc_0.1_9.mat")
+read_prcc <- function(path) {
+  ## Run PRCC for all outcomes.
+  h5 <- H5File$new(path, mode = "r")
+  prcc_result <- h5[["prccResult"]]
+  x <- as.integer(prcc_result[["analysisTimePoints"]]$read() / ticks_per_day)
+  read_cellarray_as_characters <- function(member)
+    ## Cell Arrays are H5R objects that need to be dereferenced.
+    lapply(prcc_result[[member]]$read()$dereference(),
+           function(x) intToUtf8(x$read())) %>%
+      unlist()
+  output_names <-
+    read_cellarray_as_characters("modelOutputNames")
+  param_names <-
+    read_cellarray_as_characters("paramNames")
+  ## Dimensions = [timepoints, outputs, parameters]
+  arr <- prcc_result[["uncorrectedPrcc"]]$read()
+  h5$close_all()
+  enframe_matrix <- function(mat, name) {
+    ## Coercing the array to a tibble causes the first dimension to become the
+    ## rows, and the product of the second and third dimensions to become the
+    ## columns.
+    as_tibble(mat) %>%
+    `colnames<-`(paste(rep(output_names, times = n_params),
+                       rep(param_names, each = n_outputs),
+                       sep = "|")) %>%
+      mutate(day = x, .before = 1L) %>%
+      gather(key = "output_param", value = "value", -day, convert = FALSE) %>%
+      ## Separate takes the longest time to run.
+      separate(output_param, into = c("output", "param"), sep = "[|]") %>%
+      mutate(value = ifelse(value == 1L, NA, value)) %>%
+      rename(all_of(setNames(c("value"), name)))
+  }
+  n_outputs <- length(output_names)
+  n_params <- length(param_names)
+  enframe_matrix(arr, "prcc")
+}
+df_prcc_h5 <- read_prcc(file_prcc)
+n_colors <- 6
+df_prcc <-
+  df_prcc_h5 %>%
+  ## Remove parameter prefix.
+  mutate(param = str_remove(param, "GR[.]")) %>%
+  ## Remove uninteresting parameters.
+  filter(! str_detect(param,
+                      str_c(c("@initDensity$",
+                              "movement",
+                              "@time",
+                              "HalfSat",
+                              "nrIntMtb",
+                              "@kApoptosis$"),
+                            collapse = "|"))) %>%
+  ## Rename parameters to be more legible.
+  mutate(param =
+      ## Rename parameters to be more legible.
+      fct(param) %>%
+      fct_recode(
+        "Macrophage recruitment" =
+          "Recruit.Prob.Mac/@maxRecProb",
+        "Regulatory T cell recruitment" =
+          "Recruit.Prob.Tcell.Treg/@maxRecProb",
+        "IFN-γ producing T cell recruitment" =
+          "Recruit.Prob.Tcell.Tgam/@maxRecProb",
+        "Cytotoxic T cell recruitment" =
+          "Recruit.Prob.Tcell.Tcyt/@maxRecProb",
+        "Effector IFN-γ producing T cell probability" =
+          "Recruit.Prob.Tcell.Tgam/@probCognate",
+        "Macrophage chemokine recruitment" =
+          "Recruit.Prob.Mac/@thresholdRecChemokine",
+        "IFN-γ producing T cell chemokine recruitment" =
+          "Recruit.Prob.Tcell.Tgam/@thresholdRecChemokine",
+        "Regulatory T cell chemokine recruitment" =
+          "Recruit.Prob.Tcell.Treg/@thresholdRecChemokine",
+        "TNF-induced apoptosis" =
+          "Core/@thresholdApoptosisTNF",
+        "TNF from IFN-γ producing T cells" =
+          "Core.Tcell.Tgam/@probTNFProducer",
+        "TNF from cytotoxic T cells" =
+          "Core.Tcell.Tcyt/@probTNFProducer",
+        "Caseation from cell death" =
+          "Core/@nrKillingsCaseation")) %>%
+  ## Convert days to weeks.
+  mutate(week = as.integer(day / 7L), .before = day) %>%
+  select(-day) %>%
+  ## Tweak output labels.
+  mutate(
+    output =
+      ## Set order of outputs.
+      fct_inorder(output) %>%
+      fct_relevel("MaxGranulomaDiameter",
+                  "CaseumRatio",
+                  "TotMtbInGranScaledRing",
+                  after = 0) %>%
+      ## Rename outputs.
+      fct_recode(
+        "Granuloma diameter" = "MaxGranulomaDiameter",
+        "Caseum-granuloma area ratio" = "CaseumRatio",
+        "Macrophages" = "Mac ScaledRing",
+        "IFN-γ producing T cells" = "Tgam ScaledRing",
+        "Cytotoxic T cells" = "Tcyt ScaledRing",
+        "Regulatory T cells" = "Treg ScaledRing",
+        "CFU" = "TotMtbInGranScaledRing"))
+df_prcc_signif <-
+  df_prcc %>%
+  drop_na() %>%
+  group_by(output) %>%
+  filter(prcc %in% boxplot.stats(prcc)$out) %>%
+  ungroup() %>%
+  distinct(output, param) %>%
+  mutate(week = 22L) %>%
+  left_join(df_prcc %>%
+              select(output, param, week, prcc),
+            by = c("week", "output", "param"))
+
+## Choose colors of significant lines that such that same-colored lines do not
+## cross and same-colored lines are not adjacent at the last timepoint.
+##
+## Find parameter line intersections:
+df_intersect <-
+  df_prcc %>%
+  mutate(output = as.integer(output),
+         param = as.integer(param)) %>%
+  pivot_wider(id_cols = c(week, output),
+              names_from = param,
+              values_from = prcc) %>%
+  group_by(output) %>%
+  nest() %>%
+  mutate(intersects = map(data, function(df) {
+    week <- pull(df, week)
+    stopifnot(week == 0:22)
+    mat <-
+      select(df, -week) %>%
+      as.matrix()
+    ## Find combination of differences, take sign, and find if the sign changes
+    ## at anytime over the 22 weeks.
+    ##
+    ## Sign of differences:
+    c2 <- combn(ncol(mat), 2)
+    diff_sign <- sign(mat[, c2[1, ]] - mat[, c2[2, ]])
+    mode(diff_sign) <- "integer"
+    colnames(diff_sign) <- apply(c2, 2, str_c, collapse = "_")
+    rownames(diff_sign) <- week
+    ## Does the sign change?
+    has_pos <- apply(diff_sign == 1L, 2, any, na.rm = TRUE)
+    has_neg <- apply(diff_sign == -1L, 2, any, na.rm = TRUE)
+    data.frame(cmp = colnames(diff_sign),
+               intersects = has_pos & has_neg)
+  })) %>%
+  ungroup() %>%
+  select(-data) %>%
+  unnest(intersects) %>%
+  filter(intersects) %>%
+  select(-intersects) %>%
+  separate_wider_delim(cmp, delim = "_", names = c("param1", "param2")) %>%
+  mutate(across(c(param1, param2), as.integer)) %>%
+  arrange(output, param1, param2) %>%
+  ## Subset parameters in to df_prcc_signif.
+  semi_join(df_prcc_signif %>%
+              select(output, param) %>%
+              mutate(across(c(output, param), as.integer)) %>%
+              rename(param1 = param),
+            by = c("output", "param1")) %>%
+  semi_join(df_prcc_signif %>%
+              select(output, param) %>%
+              mutate(across(c(output, param), as.integer)) %>%
+              rename(param2 = param),
+            by = c("output", "param2"))
+
+## Find adjacent parameters at the last timepoint.
+mat_adjacent <-
+  df_prcc_signif %>%
+  select(-week) %>%
+  mutate(output = as.integer(output),
+         param = as.integer(param)) %>%
+  arrange(output, prcc) %>%
+  group_by(output) %>%
+  mutate(param1 = lag(param),
+         param2 = param,
+         param3 = lead(param)) %>%
+  ungroup() %>%
+  select(-param, -prcc, -output) %>%
+  arrange(param1, param2, param3) %>%
+  ## Remove duplicates.
+  replace_na(list(param1 = 0L, param3 = 0L)) %>%
+  as.matrix() %>%
+  `colnames<-`(NULL) %>%
+  apply(1, sort) %>%
+  t() %>%
+  `colnames<-`(str_c("param", 1:3)) %>%
+  as_tibble() %>%
+  arrange(param1, param2, param3) %>%
+  distinct(param1, param2, param3) %>%
+  as.matrix()
+
+## Assign the minimum number of colors without intersections or adjacencies.
+params <- df_prcc_signif %>% pull(param) %>% as.integer() %>% unique()
+lookup <- function(x) map_vec(x, ~ which(params %in% .x))
+constraints_intersect <-
+  spMatrix(nrow = length(params),
+           ncol = length(params),
+           i = lookup(mat_intersect[, 1]),
+           j = lookup(mat_intersect[, 2]),
+           x = rep(1L, nrow(mat_intersect))) %>%
+  .[rowSums(.) != 0, ]
+alldifferent <-
+  Rglpk_solve_LP(obj = rep(1L, ncol(constraints_intersect)),
+                 mat = constraints_intersect,
+                 dir = rep("==", nrow(constraints_intersect)),
+                 rhs = rep(1L, nrow(constraints_intersect)),
+                 all.bin = TRUE)
+
+  ## ## Add color.
+  ## group_by(param) %>%
+  ## mutate(color_id = cur_group_id() %% 6 %>%
+  ##          as.character() %>%
+  ##          fct()) %>%
+  ## ungroup() %>%
+weeks <- 22L
+x_max <- 47L
+df_prcc %>%
+  left_join(df_prcc_signif %>%
+              distinct(param, output) %>%
+              mutate(alpha = 1.0),
+            by = c("param", "output")) %>%
+  mutate(alpha = ifelse(is.na(alpha), 0.3, alpha)) %>%
+  ggplot(aes(x = week,
+             y = prcc,
+             ## color = color_id,
+             group = param)) +
+  facet_wrap(~ output, ncol = 2) +
+  theme_bw() +
+  theme(
+    ## Using clip = "off" together with increasing the right plot margin allows
+    ## the geom_text_repel labels to be outside the plot area.
+    plot.margin = unit(c(0.1, 6, 0.1, 0.1), "cm"),
+    ## Increase spacing between facet columns.
+    panel.spacing.x = unit(11, "lines"),
+    ## X-axis title centering looks bad after ajusting panel spacing, so left
+    ## align instead.
+    axis.title.x = element_text(hjust = 0.07)) +
+  coord_cartesian(clip = "off") +
+  guides(color = "none",
+         alpha = "none") +
+  labs(x = "Week (post-infection)",
+       y = "Partial rank correlation (PRC)") +
+  geom_hline(yintercept = 0) +
+  geom_line(aes(alpha = alpha)) +
+  geom_text_repel(aes(label = param),
+                  ## Constrain labels 1 week after the last timepoint.
+                  xlim = c(weeks + 1L, x_max),
+                  data = df_prcc_signif,
+                  ## Only auto-nudge in y-direction.
+                  direction = "y",
+                  ## Left align.
+                  hjust = 0,
+                  ## Draw all segments.
+                  min.segment.length = 0,
+                  segment.color = "black",
+                  segment.linetype = 2,
+                  segment.curvature = -1e-20,
+                  ## Reduce text size.
+                  size = 2.5) +
+  geom_point(data = df_prcc_signif,
+             size = 1,
+             color = "black") +
+  ## Remove padding around between data and axes.
+  scale_x_continuous(expand = c(0, 0),
+                     ## No data at week 0.
+                     limits = c(1L, NA)) +
+  scale_y_continuous(expand = c(0, 0))
+```
+
+```{r session-info}
+#| cache: false
+sessionInfo()
+```

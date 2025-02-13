@@ -1,0 +1,218 @@
+# Figure 3
+
+```{r imports}
+#| cache: false
+#| message: false
+library(dplyr)
+library(stringr)    # str_remove
+library(purrr)      # map_df
+library(readr)      # read_csv
+library(tidyr)      # pivot_wider
+library(ggalign)    # ggheatmap
+## library(shadowtext) # geom_shadowtext
+```
+
+```{r prepare-inputs}
+#| cache: true
+#| cache.vars:
+#| - dir_data
+source("R/config.R")
+```
+
+```{r figure-03-clust-pred-features}
+#| cache: true
+#| dependson: -1
+#| fig.width: 9
+#| fig.height: 5.2
+files_rank <-
+  file.path(dir_data,
+            "2024-09-03-A-varsel-50k",
+            "output") %>%
+  dir("^rank_week[0-9]{1,2}[.]txt",
+      full.names = TRUE) %>%
+  ## Sort file names numerically.
+  .[order(as.numeric(str_extract(., "rank_week(.+)[.]txt", group = 1)))]
+files_size <-
+  file.path(dir_data,
+            "2024-09-03-A-varsel-50k",
+            "output") %>%
+  dir("^size_week[0-9]{1,2}[.]txt",
+      full.names = TRUE) %>%
+  ## Sort file names numerically.
+  .[order(as.numeric(str_extract(., "size_week(.+)[.]txt", group = 1)))]
+
+## Read in the ordered predictive variables.
+df_ord <-
+  files_rank %>%
+  map_df(read_csv, show_col_types = FALSE,
+         .id = "week") %>%
+  mutate(across(week:size, as.integer))
+df_ord
+
+## Read in the calculated sufficient number of predictive variables.
+suppressWarnings({
+  ## Ignore the warning from converting the NA character to an NA integer.
+  n_suff <-
+    files_size %>%
+    map_chr(read_lines) %>%
+    as.integer()
+})
+n_suff
+
+## Compare how much different the sufficient number is from the full list.
+n_vars <-
+  df_ord %>%
+  filter(ranking_fulldata != "(Intercept)") %>%
+  count(week) %>%
+  mutate(n_suff = n_suff,
+         diff = ifelse(is.na(n_suff),
+                       0L, n - n_suff),
+         n_vars = n - diff) %>%
+  print(n = Inf)
+
+## Frequency of features (with Bayesian variable selection).
+df_varsel <-
+  df_ord %>%
+  filter(ranking_fulldata != "(Intercept)") %>%
+  inner_join(select(n_vars, week, n_vars), by = "week") %>%
+  filter(row_number() <= n_vars, .by = week) %>%
+  select(-n_vars)
+df_varsel
+
+## Descriptive feature names.
+names_map <- c(
+  "gran_AreaShape_MajorAxisLength_mean" =
+    "Granuloma major-axis length",
+  "gran_Intensity_StdIntensity_tnf_mean" =
+    "TNF standard deviation in granuloma",
+  "mac_Neighbors_NumberOfNeighbors_3_IQR" =
+    "Macrophage number of neighbors",
+  "gran_RadialDistribution_RadialCV_tnf_1of4_mean" =
+    "Inner granuloma macrophage activation signal",
+  "macs_Intensity_MaxIntensity_tnf_mean" =
+    "TNF proximal to macrophages",
+  "gran_Intensity_MeanIntensity_tnf_mean" =
+    "TNF in granuloma",
+  "mac_Children_macs_Count_mean" =
+    "Number of macrophages",
+  "mac_Neighbors_SecondClosestDistance_3_median" =
+    "Distance from macrophage to second-closest cell",
+  "mac_Neighbors_NumberOfNeighbors_3_mean" =
+    "Macrophage mean number of neighbors",
+  "mac_Neighbors_NumberOfNeighbors_3_median" =
+    "Macrophage median number of neighbors",
+  "gran_AreaShape_MedianRadius_mean" =
+    "Granuloma median radius",
+  "macs_RadialDistribution_FracAtD_ifng_4of4_mean" =
+    "Outer granuloma macrophage activation signal",
+  "t_cyts_AreaShape_EquivalentDiameter_mean" =
+    "Cytotoxic T cell aggregate diameter",
+  "t_gam_Location_CenterMassIntensity_X_tnf_IQR" =
+    "T cells activating macrophages x-distribution",
+  "t_gam_Location_CenterMassIntensity_Y_tnf_IQR" =
+    "T cells activating macrophages y-distribution",
+  "ts_Intensity_StdIntensity_tnf_mean" =
+    "TNF proximal to T cells",
+  "macs_Intensity_StdIntensity_tnf_mean" =
+    "TNF variation proximal to macrophages",
+  "t_gam_AreaShape_BoundingBoxMaximum_X_IQR" =
+    "T cells activating macrophages x-edges",
+  "t_gam_AreaShape_BoundingBoxMaximum_Y_IQR" =
+    "T cells activating macrophages y-edges",
+  "t_regs_AreaShape_EquivalentDiameter_mean" =
+    "Regulatory T cell aggregate diameter",
+  "macs_RadialDistribution_FracAtD_ifng_3of4_mean" =
+    "Mid granuloma macrophage activation signal",
+  "mac_Location_CenterMassIntensity_Y_ifng_IQR" =
+    "Macrophage activation signal distribution along y-axis",
+  "mac_Location_CenterMassIntensity_X_ifng_IQR" =
+    "Macrophage activation signal distribution along x-axis",
+  "ts_Intensity_StdIntensityEdge_tnf_mean" =
+    "TNF standard deviation at granuloma edge",
+  "mac_Neighbors_FirstClosestDistance_t_reg_3_median" =
+    "Distance from macrophage to closest regulatory T cell",
+  "ts_AreaShape_FormFactor_mean" =
+    "T cell distribution circularity",
+  "t_gam_Children_t_gams_Count_mean" =
+    "Number of T cells activating macrophages"
+)
+## ## Use the original column names if unlabelled above.
+## names(names_map)[names(names_map) == ""] <-
+##   names_map[names(names_map) == ""] %>%
+##   setNames(NULL)
+## Plot clustered heatmap.
+mat_full <-
+  df_varsel %>%
+  ## Remove features that appear for less than 3 weeks.
+  inner_join(df_varsel %>%
+               count(ranking_fulldata) %>%
+               filter(n >= 3) %>%
+               select(-n),
+             by = "ranking_fulldata") %>%
+  pivot_wider(id_cols = ranking_fulldata,
+              names_from = week,
+              values_from = size) %>%
+  tibble::column_to_rownames(var = "ranking_fulldata") %>%
+  as.matrix()
+rownames(mat_full) <-
+  names_map[rownames(mat_full)] %>%
+  setNames(NULL)
+## NA values will cause hclust to fail.
+d_mat <- max(mat_full, na.rm = TRUE) + 1L - mat_full
+d_mat[is.na(d_mat)] <- Inf
+d <- dist(d_mat, method = "canberra")
+n_clusters <- 5L
+colors_cluster <-
+  scales::pal_hue()(3) %>%
+                  setNames(c("4", "3", "1"))
+labels_cluster <-
+  c("1" = "Formation",
+    "3" = "Maintenance",
+    "4" = "Transient")
+ggheatmap(mat_full, filling = NULL) +
+  ## Outline tiles with black lines and leave small gaps to distinguish
+  ## contiguous dark tiles.
+  geom_tile(aes(fill = value), color = "black", width = 0.95, height = 0.95) +
+  scale_y_continuous(position = "right") +
+  ## theme(axis.text.y = element_text(
+  ##   size = 7## ,
+  ##   ## face = ifelse(str_detect(rownames(mat_full), "^mac"), "bold", "plain")
+  ## )) +
+  labs(x = "Week",
+       y = "Spatial feature",
+       fill = "Rank") +
+  ## Color-bind friendly palette.
+  scale_fill_gradient(low = "black",
+                      high = "gray90",
+                      na.value = "white",
+                      breaks = c(1, 18),
+                      labels = c("Better", "Worse"),
+                      guide = guide_colorbar(reverse = TRUE)) +
+  theme(legend.position = "left") +
+  ## Overlay rank value labels instead of a hard-to-read gradient.
+  ## guides(fill = "none") +
+  ## "value" is generated by ggheatmap() per
+  ## https://yunuuuu.github.io/ggalign-book/heatmap-layout.html#sec-heatmap-layout-main-plot
+  ## geom_shadowtext(aes(label = value), size = 3) +
+  anno_left(size = unit(5, "char")) +
+  align_dendro(k = n_clusters,
+               distance = d,
+               aes(color = branch)) +
+  scale_color_manual(values = colors_cluster,
+                     labels = labels_cluster) +
+  geom_point() +
+  ## Remove unnecessary labels of align_dendro().
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "left") +
+  labs(x = NULL,
+       color = "Cluster") +
+  guides(color = guide_legend(reverse = TRUE## ,
+                              ## override.aes = list(linewidth = 0)
+                              ))
+```
+	
+```{r session-info}
+#| cache: false
+sessionInfo()
+```
