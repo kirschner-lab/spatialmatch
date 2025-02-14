@@ -13,18 +13,23 @@ LazyData: true
 Depends:
     R (>= 3.5)
 Suggests:
+    bayesplot,
+    doParallel,
     dplyr,
     forcats,
+    foreach,
     ggalign,
     ggplot2,
     ggrepel,
     hdf5r,
     Matrix,
+    projpred,
     purrr,
     readr,
     readxl,
     Rglpk,
     rprojroot,
+    rstanarm,
     shadowtext,
     snakecase,
     stringr,

@@ -82,6 +82,8 @@ df_std
 ```{r figure-03-50k-sim}
 #| cache: true
 #| dependson: -1
+#| fig.width: 6.5
+#| fig.height: 3
 df_std %>%
   ggplot(aes(x = time,
              y = value)) +

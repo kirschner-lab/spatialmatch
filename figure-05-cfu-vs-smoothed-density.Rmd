@@ -1,0 +1,171 @@
+# Figure 5
+
+```{r imports}
+#| cache: false
+#| message: false
+library(dplyr)
+library(readr)
+library(fs)
+library(projpred)
+library(snakecase)
+library(rstanarm)
+ncores <- parallel::detectCores(logical = FALSE)
+options(mc.cores = ncores)
+library(bayesplot)
+library(ggplot2)
+```
+
+```{r config}
+#| cache: true
+#| cache.vars:
+#| - dir_data
+source("R/config.R")
+```
+
+```{r prepare-inputs}
+#| cache: true
+#| dependson: -1
+
+file_stats <-
+  file.path(dir_data,
+            "2024-06-14-A-gs-5000",
+            "output-lhs-aggregated-stat-cols-35.csv")
+file_features <-
+  file.path(dir_data,
+            "2024-06-27-A-training-data-oneshot",
+            "output.csv")
+## Prepare the df containing both the mtb output and predictors.
+df_stats <-
+  read_csv(file_stats,
+           col_types = c(exp = "c", time = "i"),
+           show_col_types = FALSE)
+ys <-
+  df_stats %>%
+  filter(time == max(time)) %>%
+  select(-starts_with("GR")) %>%
+  mutate(exp  =
+           as.double(exp) %>%
+           floor() %>%
+           as.integer()) %>%
+  rename_with(to_snake_case) %>%
+  dplyr::rename(Metadata_Site = exp,
+                Metadata_Plate = time)
+df_features <-
+  read_csv(file_features,
+           col_types = c(Metadata_Site = "i",
+                         Metadata_Plate = "i"),
+           show_col_types = FALSE)
+df <-
+  inner_join(select(ys, 1:2, "tot_mtb_in_gran_scaled_ring"),
+             df_features,
+             by = c("Metadata_Site", "Metadata_Plate")) %>%
+  select(-starts_with("Metadata")) %>%
+  dplyr::rename(mtb = tot_mtb_in_gran_scaled_ring) %>%
+  mutate(mtb = log1p(mtb) / log(9)) %>%
+  ## Cleanup inputs for regression.
+  ##
+  ## Replace problematic values with zero for now.
+  mutate(across(everything(),
+                function(x)
+                  replace(x, is.na(x) | x < 0 | is.infinite(x), 0))) %>%
+  ## Remove all columns with the same value.
+  select(where(function(x) ! all(x[1] == x))) %>%
+  ## Get rid of uninformative Zernike columns.
+  select(! contains("zernike")) %>%
+  ## Features within caseum are not helpful.
+  select(! contains("caseum")) %>%
+  ## Remove zero-values for now.
+  filter(mtb > 0)
+dim(df)
+
+## Top 10 predictors from 27 previously identifed.
+system.time({
+  refm_fit <- stan_glm(
+    mtb ~
+      mac_Location_CenterMassIntensity_X_ifng_IQR +
+      mac_Neighbors_NumberOfNeighbors_3_mean +
+      mac_Neighbors_PercentTouching_t_cyt_3_mean +
+      macs_AreaShape_EquivalentDiameter_mean +
+      macs_Intensity_MaxIntensity_tnf_mean +
+      macs_RadialDistribution_RadialCV_ifng_4of4_mean +
+      t_cyt_Neighbors_PercentTouching_3_mean +
+      t_gams_AreaShape_Compactness_mean +
+      t_gams_Intensity_StdIntensityEdge_tnf_mean +
+      t_reg_Neighbors_NumberOfNeighbors_3_mean,
+    family = gaussian(),
+    data = df
+  )
+})
+
+## The next few steps are from the package vignette: projpred:
+## Projection predictive feature selection.
+refm_obj <- get_refmodel(refm_fit)
+
+system.time({
+  cv_fits <- run_cvfun(refm_obj)
+})
+
+## Run CV in parallel.
+doParallel::registerDoParallel(ncores)
+system.time({
+  cvvs <- cv_varsel(
+    refm_obj,
+    cv_method = "kfold",
+    cvfits = cv_fits,
+    parallel = TRUE,
+    verbose = TRUE
+  )
+})
+## Tear down the CV parallelization setup:
+doParallel::stopImplicitCluster()
+foreach::registerDoSEQ()
+
+suggest_size(cvvs, stat = "mlpd")
+
+rk <- ranking(cvvs)
+## Marginals of the projected posterior.
+( predictors_final <- head(rk[["fulldata"]],
+                           suggest_size(cvvs, stat = "mlpd")) )
+system.time({
+  prj <- project(
+    refm_obj,
+    predictor_terms = predictors_final
+  )
+})
+
+## Predicted draws encompassing uncertainty from parameter estimation
+## and sampling.
+prj_predict <- proj_predict(prj)
+```
+
+```{r figure-05-cfu-vs-smoothed-density}
+#| cache: true
+#| dependson: -1
+#| fig.width: 6.5
+#| fig.height: 3
+ppc_dens_overlay(y = df$mtb,
+                 yrep = prj_predict) +
+  labs(x = "CFU (counts)",
+       y = "Smoothed density",
+       color = "") +
+  expand_limits(y = c(0, 0.3)) +
+  ## Modified from scales::label_log() to use already log-scale
+  ## exponents instead of converting.
+  scale_x_continuous(labels = function(x) {
+    exponent <- format(x, digits = 1)
+    text <- paste0(10, "^", exponent)
+    ret <- scales:::parse_safe(text)
+    ret[is.na(x)] <- NA
+    ret
+  }) +
+  scale_color_manual(labels = c("Simulated", "Regression predicted"),
+                     values = bayesplot:::get_color(c("dh", "lh"))) +
+  geom_rug(data = tibble(value = df$mtb), alpha = 0.08) +
+  theme(legend.position = c(.2, .9),
+        text = element_text(family = "sans"))
+```
+
+```{r session-info}
+#| cache: false
+sessionInfo()
+```
