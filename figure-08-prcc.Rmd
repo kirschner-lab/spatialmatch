@@ -68,7 +68,6 @@ read_prcc <- function(path) {
   enframe_matrix(arr, "prcc")
 }
 df_prcc_h5 <- read_prcc(file_prcc)
-n_colors <- 6
 df_prcc <-
   df_prcc_h5 %>%
   ## Remove parameter prefix.
@@ -98,14 +97,6 @@ df_prcc <-
           "Recruit.Prob.Tcell.Tcyt/@maxRecProb",
         "% Mtb-specific IFN-γ+ T cell" =
           "Recruit.Prob.Tcell.Tgam/@probCognate",
-        ## "Macrophage chemokine recruitment" =
-        ##   "Recruit.Prob.Mac/@thresholdRecChemokine",
-        ## "IFN-γ+ T cell chemokine recruitment" =
-        ##   "Recruit.Prob.Tcell.Tgam/@thresholdRecChemokine",
-        ## "Regulatory T cell chemokine recruitment" =
-        ##   "Recruit.Prob.Tcell.Treg/@thresholdRecChemokine",
-        ## "TNF-induced apoptosis" =
-        ##   "Core/@thresholdApoptosisTNF",
         "TNF from IFN-γ+ T cells" =
           "Core.Tcell.Tgam/@probTNFProducer",
         "TNF from cytotoxic T cells" =
@@ -144,11 +135,15 @@ df_prcc_signif <-
   left_join(df_prcc %>%
               select(output, param, week, prcc),
             by = c("week", "output", "param"))
+params_signif <- pull(distinct(df_prcc_signif, param))
+params_signif_int <- as.integer(params_signif)
+n_params_signif <- length(params_signif)
+n_colors <- length(params_signif)
 
 ## Maxmimize color contrast between significant lines that cross.
 ##
 ## Find parameter line intersections:
-mat_intersect <-
+df_intersect <-
   df_prcc %>%
   mutate(output = as.integer(output),
          param = as.integer(param)) %>%
@@ -196,24 +191,59 @@ mat_intersect <-
               select(output, param) %>%
               mutate(across(c(output, param), as.integer)) %>%
               rename(param2 = param),
-            by = c("output", "param2"))
+            by = c("output", "param2")) %>%
+  ## Encode to parameter indices.
+  select(-output) %>%
+  distinct() %>%
+  mutate(across(param1:param2,
+                function(x)
+                  map_vec(x, ~ which(params_signif_int %in% .x))))
 
 ## Assign colors that maximize the hue of intersecting lines.
-params <- df_prcc_signif %>% pull(param) %>% as.integer() %>% unique()
-lookup <- function(x) map_vec(x, ~ which(params %in% .x))
-## constraints_intersect <-
-##   spMatrix(nrow = length(params),
-##            ncol = length(params),
-##            i = lookup(mat_intersect[, 1]),
-##            j = lookup(mat_intersect[, 2]),
-##            x = rep(1L, nrow(mat_intersect))) %>%
-##   .[rowSums(.) != 0, ]
-## alldifferent <-
-##   Rglpk_solve_LP(obj = rep(1L, ncol(constraints_intersect)),
-##                  mat = constraints_intersect,
-##                  dir = rep("==", nrow(constraints_intersect)),
-##                  rhs = rep(1L, nrow(constraints_intersect)),
-##                  all.bin = TRUE)
+##
+## First make sure the constraints are solvable.
+constraints_intersect <-
+  spMatrix(nrow = nrow(df_intersect) * n_colors,
+           ncol = n_params_signif * n_colors,
+           i = rep(seq_len(nrow(df_intersect) * n_colors), each = 2),
+           j =
+             df_intersect %>%
+             group_by(i = row_number()) %>%
+             nest() %>%
+             mutate(vec = map(data, function(df) {
+               x <- unlist(df)
+               ## Offset by number of colors and repeat for each color
+               ## of the parameter.
+               mat <- seq_len(n_colors) %*% t(c(1, 1))
+               mat + t(replicate(n_colors, n_colors * (x - 1L)))
+             })) %>%
+             ungroup() %>%
+             select(vec) %>%
+             unnest(vec) %>%
+             pull(vec) %>%
+             t() %>%
+             c(),
+           x = rep(1L, 2 * nrow(df_intersect) * n_colors))
+constraints_one_color <-
+  spMatrix(nrow = n_params_signif,
+           ncol = n_params_signif * n_colors,
+           i = rep(seq_len(n_colors), each = n_params_signif),
+           j = seq_len(n_colors * n_params_signif),
+           x = rep(1L, n_params_signif * n_colors))
+alldifferent <-
+  Rglpk_solve_LP(obj = rep(1L, n_params_signif * n_colors),
+                 mat = rbind(constraints_intersect,
+                             constraints_one_color),
+                 dir = c(rep("==", nrow(constraints_intersect)),
+                         rep("==", nrow(constraints_one_color))),
+                 rhs = c(rep(0L, nrow(constraints_intersect)),
+                         rep(1L, nrow(constraints_one_color))),
+                 types = rep("B", n_params_signif * n_colors))
+## stopifnot(alldifferent$status == 0)
+
+## Now maximize the hue differences.
+## max_hue_diff <-
+##   Rglpk_solve_LP(...)
 
   ## ## Add color.
   ## group_by(param) %>%
