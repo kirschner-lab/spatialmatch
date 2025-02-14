@@ -21,6 +21,12 @@
   options(repos = BiocManager::repositories())
   remotes::install_deps(dependencies = TRUE)
 
+  ## Prepare data common to multiple figures:
+  setwd("data-raw")
+  source("mibi_cal.R")
+  source("mibi_cells_and_meta.R")
+  setwd("..")
+
   ## Build the RMarkdown book PDF:
   bookdown::render_book()
   ```

@@ -9,6 +9,9 @@ Description: RMarkdown documents to reproduce the results and supplementary
     inputs and library imports.
 License: Apache License (>= 2)
 Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 3.5)
 Suggests:
     dplyr,
     forcats,
@@ -17,9 +20,13 @@ Suggests:
     ggrepel,
     hdf5r,
     Matrix,
+    purrr,
     readr,
+    readxl,
     Rglpk,
+    rprojroot,
     shadowtext,
     snakecase,
     stringr,
-    tidyr
+    tidyr,
+    usethis
