@@ -1,4 +1,22 @@
 ---
 title: Spatial Matching Figures and Code
 css: style.css
+author: Pariksheet Nanda
+date: "`r Sys.Date()`"
+github-repo: kirschner-lab/spatialmatch
+url: 'https\://bookdown.org/kirschner-lab/spatialmatch/'
 ---
+
+# Preface {-}
+
+```{asis, echo=!knitr::is_latex_output()}
+This is supplementary code
+for a research manuscript
+that is freely available online
+and licensed under
+the [Apache-2.0 license](https://opensource.org/license/apache-2-0).
+If you have any feedback,
+please feel free to
+[file an issue on GitHub](https://github.com/kirschner-lab/spatialmatch/issues/new).
+Thank you!
+```

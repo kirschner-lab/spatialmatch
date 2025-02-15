@@ -1,4 +1,5 @@
 new_session: yes
+# Explicitly set rmd_files to reuse README.md as the first page.
 rmd_files:
 - index.Rmd
 - README.md
