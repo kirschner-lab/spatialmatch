@@ -270,8 +270,9 @@ df_prcc %>%
   facet_wrap(~ output, ncol = 2) +
   theme_bw() +
   theme(
-    ## Using clip = "off" together with increasing the right plot margin allows
-    ## the geom_text_repel labels to be outside the plot area.
+    ## Using clip = "off" in coord_cartesian() together with increasing the
+    ## right plot margin allows the geom_text_repel() labels to be outside the
+    ## plot area.
     plot.margin = unit(c(0.1, 2.4, 0.1, 0.1), "cm"),
     ## Increase spacing between facet columns.
     panel.spacing.x = unit(4.5, "lines"),
@@ -315,7 +316,13 @@ df_prcc %>%
   scale_x_continuous(expand = c(0, 0),
                      ## No data at week 0.
                      limits = c(1L, NA)) +
-  scale_y_continuous(expand = c(0, 0))
+  scale_y_continuous(expand = c(0, 0)) +
+  geom_text(aes(x = -Inf,
+                y = Inf,
+                label = LETTERS[as.integer(output)]),
+            hjust = 1.6,
+            vjust = -0.5,
+            inherit.aes = FALSE)
 ```
 
 ```{r session-info}
