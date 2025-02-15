@@ -1,0 +1,453 @@
+# Figure 6
+
+```{r imports}
+#| cache: false
+#| message: false
+library(dplyr)
+library(Matrix) # spMatrix
+library(Rglpk)  # Rglpk_solve_LP
+library(readr)
+library(stringr)
+library(tidyr)
+library(forcats)
+library(ggplot2)
+```
+
+## Toy example of digital partners
+
+Use a linear programming solver in R to run unbalanced optimal transport (OT).
+Although more low-level than a framework like Python OT, linear programming has
+the flexibility to setup our problem where only certain GranSim simulations
+being matched against MIBI granulomas instead of an all-to-all comparison.
+
+```{r pair-toy}
+#| cache: true
+## Toy example of 2 MIBI granulomas and 3 GranSim granulomas for each MIBI.
+##
+## Nevertheless there are some challenges:
+##
+## 1. We have a feature vector instead of a single value for each i and j
+##    observation.  We reduce this dimension when setting up the cost matrix as
+##    described in equation 3 of the methods.
+##
+## 2. We must limit a given MIBI granuloma to only be compared against the
+##    subset of GranSim granulomas.  This is addressed by fixing values of the
+##    output x_{i,j} to 0 as described in the methods.
+##
+## Please note that this implementation avoids the 3-dimensional matrices G'
+## and M' of equation 3 by instead using an easier to understand 2 dimensional
+## ordering of G and M.  Part of the reason for using this 2-dimensional
+## pairwise approach and not matching equation 3 is the trouble using
+## crossprod() in R for 3-dimensional arrays, but perhaps it also keeps the
+## code simpler and easier to debug.
+
+n_feat <- 4 # Symbolized by n(F) in the methods equation 3.
+## MIBI feature matrix, symbolized by M with dimensions [F, D] in the methods.
+mat_mibi <-
+  matrix(c(1, 2, 3, 4,
+           5, 6, 7, 8),
+         ncol = n_feat,
+         byrow = TRUE) %>%
+  t()
+mat_mibi
+## Symbolized by n(D) in the methods all equations.
+n_mibi <- ncol(mat_mibi)
+## Number of GranSim granulomas per MIBI granuloma.  No explicit symbol for
+## this in the methods, but a property of how our data is ordered that helps us
+## setup the constraints.
+mat_gs_per_mibi <- c(3, 3)
+stopifnot(length(mat_gs_per_mibi) == n_mibi)
+## GranSim feature matrix, symbolized by G with dimensions [F, O] in the
+## methods.
+mat_gs <-
+  matrix(c(1, 2, 3, 4,
+           0, 1, 2, 3,
+           2, 3, 4, 5,
+           4, 5, 6, 7,
+           5, 6, 7, 8,
+           6, 7, 8, 9),
+         ncol = n_feat,
+         byrow = TRUE) %>%
+  t()
+mat_gs
+## >= n(O) in the methods all equations, because it may contain repeated
+## GranSim granulomas to match the MIBI granulomas.
+n_gransim <- ncol(mat_gs)
+## Symbolized by E in the methods equation 3.
+elpd <- c(30, 20, 10, 15)
+## Reduce the ELPD and feature matrices into the cost matrix symbolized by c,
+## as explained in the methods equation 3.
+cost_vec <-
+  elpd %*% abs(mat_gs - mat_mibi[, rep(seq_len(n_mibi),
+                                       times = mat_gs_per_mibi)])
+str(cost_vec)
+## Encode the methods equation 2 constraint that only one mibi granuloma must
+## be chosen from the set of all GranSim granulomas.
+constraints <-
+  spMatrix(nrow = n_mibi,
+           ncol = n_gransim,
+           i = rep(seq_len(n_mibi),
+                   times = mat_gs_per_mibi),
+           j = seq_len(n_gransim),
+           x = rep(1, n_gransim))
+constraints
+ot <-
+  Rglpk_solve_LP(obj = cost_vec,
+                 mat = constraints,
+                 dir = rep("==", nrow(constraints)),
+                 rhs = rep(1, nrow(constraints)),
+                 types = rep("B", length(cost_vec)))
+str(ot)
+gransim_idx <- c(sapply(mat_gs_per_mibi, seq_len))
+str(gransim_idx)
+df_pairs <-
+  tibble(mibi = seq_len(n_mibi),
+         gransim = gransim_idx[as.logical(ot$solution)])
+df_pairs
+```
+
+## Actual digital partners plot
+
+```{r config}
+#| cache: true
+#| cache.vars:
+#| - dir_data
+#| - ticks_per_day
+source("R/config.R")
+```
+
+```{r prepare-inputs}
+#| cache: true
+#| dependson: -1
+file_elpd <-
+  file.path(dir_data,
+            "2024-09-03-A-varsel-50k",
+            "output",
+            "rank_week11.txt")
+file_mibi <-
+  file.path(dir_data,
+            "2024-09-17-A-mibi-data-oneshot",
+            "output-combined",
+            "week11.csv")
+file_gs <-
+  file.path(dir_data,
+            "2024-08-19-A-training-data-reduce-50k",
+            "output-combined",
+            "week11.csv")
+file_gs_traj <-
+  file.path(dir_data,
+            "2024-07-19-A-gr-50k",
+            "output-lhs-stat-cols-35.csv.gz")
+cols_gs_all <-
+  read_csv(file_gs,
+           col_select = -1,
+           n_max = 0L,
+           show_col_types = FALSE) %>%
+  colnames()
+col_id <- cols_gs_all[1]
+cols_gs <- c(
+  col_id,
+  "t_gam_AreaShape_BoundingBoxMaximum_Y_IQR",
+  "mac_Neighbors_NumberOfNeighbors_3_mean",
+  "macs_Intensity_StdIntensity_tnf_mean",
+  "macs_RadialDistribution_FracAtD_ifng_3of4_mean",
+  "ts_Intensity_StdIntensity_tnf_mean",
+  "mac_Location_CenterMassIntensity_X_ifng_IQR",
+  "t_gam_Children_t_gams_Count_mean",
+  "mac_Location_CenterMassIntensity_Y_ifng_IQR",
+  "t_cyts_AreaShape_EquivalentDiameter_mean",
+  "t_regs_AreaShape_EquivalentDiameter_mean",
+  "macs_Intensity_MaxIntensity_tnf_mean",
+  "mac_Children_macs_Count_mean",
+  "mac_Neighbors_FirstClosestDistance_t_reg_3_median",
+  "gran_Intensity_StdIntensity_tnf_mean"
+)
+# Not all columns will be found in MIBI due to missing TNF, different promxity
+# size (3[x 20um] vs 60[x 1um]), etc.
+cols_mibi_all <-
+  read_csv(file_mibi,
+           col_select = -1,
+           n_max = 0L,
+           show_col_types = FALSE) %>%
+  colnames()
+cols <-
+  intersect(cols_gs,
+            str_replace(cols_mibi_all, "_60_", "_3_"))
+cols_to_scale <-
+  cols[-c(1, 2, 7)]
+
+df_mibi <-
+  read_csv(file_mibi,
+           col_select = all_of(str_replace(cols, "_3_", "_60_")),
+           show_col_types = FALSE) %>%
+  ## Linear programming / mixed-integer programming does not handle NAs.
+  drop_na() %>%
+  arrange(get(col_id)) %>%
+  rename(sample = 1) %>%
+  mutate(sample = fct_inorder(str_c("sample", sample)))
+df_gs <-
+  read_csv(file_gs,
+           col_select = all_of(cols),
+           show_col_types = FALSE) %>%
+  ## Linear programming / mixed-integer programming does not handle NAs.
+  drop_na()  %>%
+  arrange(get(col_id)) %>%
+  rename(exp = 1) %>%
+  mutate(exp = as.integer(exp)) %>%
+  ## Rescale GranSim 20um measurements to MIBI-TOF 1um.
+  mutate(across(all_of(cols_to_scale),
+                function(x) x * 20))
+df_elpd <-
+  read_csv(file_elpd,
+           col_select = c(col = "ranking_fulldata",
+                          elpd_diff = "elpd.diff"),
+           show_col_types = FALSE) %>%
+  filter(col %in% cols) %>%
+  mutate(elpd_diff = abs(elpd_diff) / sum(abs(elpd_diff)))
+stopifnot(all(pull(df_elpd, col) == cols[-1]))
+
+## Group MIBI-TOF granulomas with simulated GranSim granulomas by log-CFU.
+##
+## Trajectory plot of proximal GranSim simulatrions for each MIBI grauloma
+## within bandwidth of MIBI log10-CFU chosen from Silverman's rule of thumb.
+data(mibi_cells)
+data(meta)
+df_gs_traj_all <-
+  read_csv(file_gs_traj,
+           col_type = "cid",
+           col_select = c(exp, time, TotMtbInGranScaledRing)) %>%
+  mutate(exp = as.integer(exp),
+         time = time / ticks_per_day) %>%
+  right_join(select(df_gs, exp),
+             by = "exp")
+df_gs_traj <-
+  df_gs_traj_all %>%
+  filter(time == 11 * 7) %>%
+  select(-time) %>%
+  filter(TotMtbInGranScaledRing > 0)
+df_mibi_traj <-
+  mibi_cells %>%
+  distinct(sample) %>%
+  inner_join(meta, by = "sample") %>%
+  select(sample, gran_cfu) %>%
+  mutate(sample = fct_inorder(sample)) %>%
+  filter(gran_cfu > 0)
+df_mibi <-
+  df_mibi %>%
+  ## Remove the sterilizing granuloma.
+  right_join(distinct(df_mibi_traj, sample),
+             by = "sample")
+bw <-
+  df_mibi_traj %>%
+  summarize(bw = stats::bw.nrd0(log10(gran_cfu))) %>%
+  pull()
+df_in_range <-
+  mibi_cells %>%
+  distinct(sample) %>%
+  group_by(sample) %>%
+  ## Duplicate all the GranSim experiments for each MIBI sample.
+  reframe(exp = pull(df_gs_traj, exp),
+          TotMtbInGranScaledRing = pull(df_gs_traj, TotMtbInGranScaledRing)) %>%
+  ## Filter to +/- bandwidth.
+  inner_join(df_mibi_traj %>%
+               mutate(lb = 10 ^ (log10(gran_cfu) - bw),
+                      ub = 10 ^ (log10(gran_cfu) + bw)),
+             by = "sample") %>%
+  group_by(sample) %>%
+  filter(between(TotMtbInGranScaledRing, lb, ub)) %>%
+  ungroup()
+df_in_range %>%
+  count(sample) %>%
+  print(n = Inf)
+
+## Pair granulomas before optimal transport only when they have no NAs.
+stopifnot(df_in_range == drop_na(df_in_range))
+
+n_replicates <- 10
+df_pairs_reps <- vector("list", length = n_replicates)
+df_in_range_reps <- df_in_range
+for (i in seq_len(n_replicates)) {
+  ## Prepare GranSim feature matrix with dimensions [F, L].
+  mat_gs <-
+    select(df_in_range_reps, exp) %>%
+    left_join(df_gs,
+              by = "exp") %>%
+    select(-exp) %>%
+    as.matrix() %>%
+    `dimnames<-`(NULL) %>%
+    t()
+  ## Prepare MIBI-TOF feature matrix with dimensions [F, L].
+  mat_mibi <-
+    select(df_in_range_reps, sample) %>%
+    left_join(df_mibi,
+              by = "sample") %>%
+    select(-sample) %>%
+    as.matrix() %>%
+    `dimnames<-`(NULL) %>%
+    t()
+  ## Calculate the cost vector.
+  cost_vec <- c(pull(df_elpd, elpd_diff) %*% abs(mat_gs - mat_mibi))
+  ## Run optimal transport.
+  ##
+  ## Methods equation 2 constraint of each MIBI-TOF granuloma having a single
+  ## GranSim granuloma assigned.
+  vec_gs_per_mibi <- count(df_in_range_reps, sample) %>% pull()
+  stopifnot(sum(vec_gs_per_mibi) == nrow(df_in_range_reps))
+  n_mibi <- length(vec_gs_per_mibi)
+  n_combn <- sum(vec_gs_per_mibi)
+  constraints_mibi <-
+    spMatrix(nrow = n_mibi,
+             ncol = n_combn,
+             i = rep(seq_len(n_mibi),
+                     times = vec_gs_per_mibi),
+             j = seq_len(n_combn),
+             x = rep(1, n_combn))
+  ## Methods equation 3 constraint of each GranSim granuloma being assigned to
+  ## a MIBI-TOF granuloma no more than once.
+  df_gs_dup <-
+    df_in_range_reps %>%
+    mutate(j = row_number(),
+           .before = 1) %>%
+    left_join(count(df_in_range_reps, exp),
+              by = "exp") %>%
+    filter(n > 1) %>%
+    group_by(exp) %>%
+    mutate(i = cur_group_id())
+  n_gs_dup <- max(pull(df_gs_dup, i))
+  constraints_gs <-
+    spMatrix(nrow = n_gs_dup,
+             ncol = n_combn,
+             i = pull(df_gs_dup, i),
+             j = pull(df_gs_dup, j),
+             x = rep(1, nrow(df_gs_dup)))
+  ot <-
+    Rglpk_solve_LP(obj = cost_vec,
+                   mat = rbind(constraints_mibi,
+                               constraints_gs),
+                   dir = c(rep("==", nrow(constraints_mibi)),
+                           rep("<=", nrow(constraints_gs))),
+                   rhs = rep(1, nrow(constraints_mibi) + nrow(constraints_gs)),
+                   types = "B",
+                   max = FALSE)
+  stopifnot(ot$status == 0L)
+  ot_soln <- ot$solution
+  stopifnot(sum(ot_soln) == n_mibi)
+  df_pairs_reps[[i]] <-
+    df_in_range_reps %>%
+    filter(as.logical(ot_soln))
+  ## All MIBI-TOF samples must be present.
+  stopifnot(select(df_pairs_reps[[i]], sample) ==
+              distinct(df_in_range_reps, sample))
+  ## No GranSim exp should be repeated.
+  stopifnot(pull(df_pairs_reps[[i]], exp) ==
+              unique(pull(df_pairs_reps[[i]], exp)))
+  ## Remove the matches from the simulations for the next OT iteration.
+  exps_to_remove <- pull(df_pairs_reps[[i]], exp)
+  n_exp <- function(df) nrow(distinct(df, exp))
+  n_exp_before <- n_exp(df_in_range_reps)
+  df_in_range_reps <-
+    df_in_range_reps %>%
+    filter(! exp %in% exps_to_remove)
+  # Number of removed GranSim exp must be the same number as mibi.
+  stopifnot(n_exp(df_in_range_reps) == n_exp_before - length(exps_to_remove))
+  stopifnot(length(exps_to_remove) == n_mibi)
+}
+
+df_pairs <- bind_rows(df_pairs_reps, .id = "rep")
+## All MIBI-TOF samples must be present.
+stopifnot(distinct(df_pairs, sample) == distinct(df_in_range, sample))
+## No GranSim exp should be repeated.
+stopifnot(pull(distinct(df_pairs, exp)) == unique(pull(df_pairs, exp)))
+## Each replicate should have a unique MIBI-TOF sample.
+stopifnot(all(pull(count(df_pairs, sample, exp)) == 1L))
+
+## Identify optimal granulomas among alternatives.
+df_with_ot <-
+  df_in_range %>%
+  select(sample, exp) %>%
+  left_join(df_pairs %>%
+              select(rep, sample, exp),
+            by = c("sample", "exp"))
+```
+
+```{r figure-06-ot-trajectories.Rmd}
+#| cache: true
+#| dependson: -1
+#| fig.width: 6.5
+#| fig.height: 5.5
+## Plot trajectories of the top-3 paired and all candidate granulomas.
+n_colors <- 6L
+df_with_ot %>%
+  inner_join(df_gs_traj_all,
+             by = "exp",
+             relationship = "many-to-many") %>%
+  mutate(rep = ifelse(as.integer(rep) > 3L, NA, rep)) %>%
+  rename(cfu = TotMtbInGranScaledRing) %>%
+  mutate(log_cfu = log1p(cfu) / log1p(9),
+         time = time / 7L,
+         sample = fct_relabel(sample, ~ str_c("DPs of ", .x))) %>%
+  group_by(sample, exp) %>%
+  mutate(color_id =
+           (cur_group_id() - 1L) %% n_colors %>%
+           as.character() %>%
+           fct(),
+         .before = time) %>%
+  ungroup() %>%
+  ggplot(aes(time, cfu, group = exp, color = color_id)) +
+  theme_bw() +
+  theme(legend.direction = "horizontal",
+        legend.position = "inside",
+        legend.position.inside = c(1, 0),
+        legend.justification = c("right", "center"),
+        legend.title.position = "top",
+        strip.text = element_text(size = 8.4)) +
+  labs(x = "Week (post-infection)",
+       y = "CFU counts",
+       linetype = "Rank of digital partner") +
+  guides(color = "none") +
+  facet_wrap(~ sample) +
+  geom_line() +
+  geom_line(data =
+              . %>%
+              filter(! is.na(rep)),
+            aes(linetype = rep,
+                color = NULL)) +
+  geom_point(data =
+               df_mibi_traj %>%
+               rename(cfu = gran_cfu) %>%
+               mutate(sample = fct_relabel(sample, ~ str_c("DPs of ", .x)),
+                      time = 11),
+             aes(group = NULL,
+                 color = NULL)) +
+  geom_text(data =
+              df_in_range %>%
+              count(sample) %>%
+              mutate(x =
+                       ifelse(sample %in% str_c("sample", 32:33), Inf, -Inf),
+                     y =
+                       ifelse(sample %in% str_c("sample", 32:33), 20, Inf),
+                     hjust =
+                       ifelse(sample %in% str_c("sample", 32:33), 1.02, -0.02),
+                     sample = fct_relabel(sample, ~ str_c("DPs of ", .x)),
+                     percent = 100 * n /
+                       df_gs_traj %>% distinct(exp) %>% nrow(),
+                     label = sprintf("%d%%, n = %s",
+                                     round(percent),
+                                     format(n, big.mark = ","))),
+            aes(group = NULL,
+                color = NULL,
+                x = x,
+                y = y,
+                hjust = hjust,
+                label = label),
+            vjust = 1.4,
+            size = 3) +
+  ## Remove padding around between data and axes.
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_log10(labels = scales::label_log())
+```
+
+```{r session-info}
+#| cache: false
+sessionInfo()
+```
