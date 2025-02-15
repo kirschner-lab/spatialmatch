@@ -422,24 +422,14 @@ df_with_ot %>%
   geom_text(data =
               df_in_range %>%
               count(sample) %>%
-              mutate(x =
-                       ifelse(sample %in% str_c("sample", 32:33), Inf, -Inf),
-                     y =
-                       ifelse(sample %in% str_c("sample", 32:33), 20, Inf),
-                     hjust =
-                       ifelse(sample %in% str_c("sample", 32:33), 1.02, -0.02),
-                     sample = fct_relabel(sample, ~ str_c("DPs of ", .x)),
-                     percent = 100 * n /
-                       df_gs_traj %>% distinct(exp) %>% nrow(),
-                     label = sprintf("%d%%, n = %s",
-                                     round(percent),
-                                     format(n, big.mark = ","))),
+              mutate(sample = fct_relabel(sample, ~ str_c("DPs of ", .x)),
+                     label = sprintf("n = %s", format(n, big.mark = ","))),
             aes(group = NULL,
                 color = NULL,
-                x = x,
-                y = y,
-                hjust = hjust,
                 label = label),
+            x = -Inf,
+            y = Inf,
+            hjust = -0.05,
             vjust = 1.4,
             size = 3) +
   ## Remove padding around between data and axes.
