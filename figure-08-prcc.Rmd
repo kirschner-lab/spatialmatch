@@ -135,13 +135,13 @@ df_prcc_signif <-
   left_join(df_prcc %>%
               select(output, param, week, prcc),
             by = c("week", "output", "param"))
+###############################################################################
+## Begin block to ensure intersecting parameter lines have different colors.
+###############################################################################
 params_signif <- pull(distinct(df_prcc_signif, param))
 params_signif_int <- as.integer(params_signif)
 n_params_signif <- length(params_signif)
 n_colors <- length(params_signif)
-
-## Maxmimize color contrast between significant lines that cross.
-##
 ## Find parameter line intersections:
 df_intersect <-
   df_prcc %>%
@@ -198,10 +198,10 @@ df_intersect <-
   mutate(across(param1:param2,
                 function(x)
                   map_vec(x, ~ which(params_signif_int %in% .x))))
-
 ## Assign colors that maximize the hue of intersecting lines.
 ##
-## First make sure the constraints are solvable.
+## First make sure the constraints are satisfiable before optimizing
+## color hues.
 constraints_intersect <-
   spMatrix(nrow = nrow(df_intersect) * n_colors,
            ncol = n_params_signif * n_colors,
@@ -230,37 +230,42 @@ constraints_one_color <-
            i = rep(seq_len(n_colors), each = n_params_signif),
            j = seq_len(n_colors * n_params_signif),
            x = rep(1L, n_params_signif * n_colors))
-alldifferent <-
+satisfiable <-
   Rglpk_solve_LP(obj = rep(1L, n_params_signif * n_colors),
                  mat = rbind(constraints_intersect,
                              constraints_one_color),
-                 dir = c(rep("==", nrow(constraints_intersect)),
+                 dir = c(rep("<=", nrow(constraints_intersect)),
                          rep("==", nrow(constraints_one_color))),
-                 rhs = c(rep(0L, nrow(constraints_intersect)),
+                 rhs = c(rep(1L, nrow(constraints_intersect)),
                          rep(1L, nrow(constraints_one_color))),
                  types = rep("B", n_params_signif * n_colors))
-## stopifnot(alldifferent$status == 0)
-
-## Now maximize the hue differences.
-## max_hue_diff <-
-##   Rglpk_solve_LP(...)
-
-  ## ## Add color.
-  ## group_by(param) %>%
-  ## mutate(color_id = cur_group_id() %% 6 %>%
-  ##          as.character() %>%
-  ##          fct()) %>%
-  ## ungroup() %>%
+stopifnot(satisfiable$status == 0)
+## View the color assignments.
+colors <-
+  matrix(as.logical(satisfiable$solution),
+         nrow = n_colors,
+         dimnames = list(str_c("c", seq_len(n_colors)),
+                         params_signif)) %>%
+  t() %>%
+  apply(1, which)
+colors
+set_color_id <- function(param) {
+  colors[as.character(param)] %>%
+    as.character() %>%
+    fct()
+}
+###############################################################################
+## End block to ensure intersecting parameter lines have different colors.
+###############################################################################
 weeks <- 22L
 x_max <- 35L
 df_prcc %>%
   semi_join(df_prcc_signif %>%
               distinct(param, output),
             by = c("param", "output")) %>%
-  ## mutate(alpha = ifelse(is.na(alpha), 0.3, alpha)) %>%
+  mutate(color_id = set_color_id(param)) %>%
   ggplot(aes(x = week,
              y = prcc,
-             color = param,
              group = param)) +
   facet_wrap(~ output, ncol = 2) +
   theme_bw() +
@@ -279,19 +284,20 @@ df_prcc %>%
   labs(x = "Week (post-infection)",
        y = "Partial rank correlation (PRC)") +
   geom_hline(yintercept = 0) +
-  geom_line(aes(color = NULL),
-            alpha = 0.1,
+  geom_line(alpha = 0.1,
             data = anti_join(df_prcc,
                              distinct(df_prcc_signif, param, output),
                              by = c("param", "output"))) +
-  geom_line() +
-  geom_text_repel(aes(label = str_wrap(param, width = 16L)),
+  geom_line(aes(color = color_id)) +
+  geom_text_repel(aes(label = str_wrap(param, width = 16L),
+                      color = color_id),
                   lineheight = 0.8,
                   ## Relax y-limit to reduce crowding.
                   ylim = c(-1, 1),
                   ## Constrain labels 1 week after the last timepoint.
                   xlim = c(weeks + 1L, x_max),
-                  data = df_prcc_signif,
+                  data = df_prcc_signif %>%
+                    mutate(color_id = set_color_id(param)),
                   ## Only auto-nudge in y-direction.
                   direction = "y",
                   ## Left align.
