@@ -21,7 +21,19 @@ library(ggplot2)
 #| cache.vars:
 #| - dir_data
 #| - ticks_per_day
+#| - file_cfu
+#| - file_flow
 source("R/config.R")
+
+## Files containing proprietary calibration data.  These a may or may not be
+## present when generating the plot.
+dir_data_proprietary <-
+  file.path("~/immunology/GR-ABM-ODE/simulation/scripts",
+            "calibration/abc/src/gransimcal/data")
+file_cfu <-
+  file.path(dir_data_proprietary, "CombinedCFU_updateUponMoreData.csv")
+file_flow <-
+  file.path(dir_data_proprietary, "ModelCalibrationCountLung_2018.csv")
 ```
 
 ```{r prepare-inputs}
@@ -79,26 +91,71 @@ df_std <-
 df_std
 ```
 
-```{r figure-03-50k-sim}
+```{r prepare-inputs-proprietary}
 #| cache: true
 #| dependson: -1
+#| eval: |
+#|   `all(file.exists(file_cfu, file_flow))`
+## Read in reference CFU and flowcytometry datasets.
+df_cfu <-
+  read_csv(file_cfu, col_select = c(3, 1, 2), show_col_types = FALSE) %>%
+  rename_with(to_snake_case) %>%
+  ## Remove single outlier diameter.
+  dplyr::filter(granuloma_diameter_mm >= 0.5) %>%
+  select(-granuloma_diameter_mm) %>%
+  pivot_longer(-time, names_to = "output") %>%
+  ## Ignore sterilization for now.
+  dplyr::filter(value > 0)
+df_flow <-
+  read_csv(file_flow, show_col_types = FALSE) %>%
+  ## Map columns to GranSim agents.
+  dplyr::rename(time = Timepoint,
+                tc_scaled_ring = "CD3") %>%
+  mutate(mac_scaled_ring = `CD11b+` - `CD11b+/Calp+`) %>%
+  ## Remove untreated control.
+  dplyr::filter(time > 0) %>%
+  dplyr::select(time, any_of(names(outputs))) %>%
+  pivot_longer(-time, names_to = "output")
+```
+
+```{r figure-03-50k-sim}
+#| cache: true
+#| dependson:
+#| - -2
+#| - -1
 #| fig.width: 6.5
 #| fig.height: 3
-df_std %>%
+plot_time <-
+  df_std %>%
+  mutate(time = time / 7) %>%
   ggplot(aes(x = time,
              y = value)) +
   facet_grid(~ output,
              scales = "free_y") +
-  labs(x = "Day (post-infection)",
+  labs(x = "Week (post-infection)",
        y = "Cell counts",
        color = "Classification") +
   theme_bw() +
+  ## The subsequent geom_line(linewidth = 0.1, ...) setting will make the
+  ## legend harder to see, so reset the legend to the default linewidth.
+  guides(color = guide_legend(override.aes = list(linewidth = 1))) +
   scale_y_log10(labels = scales::label_log()) +
   ## Reorder the legend to match how the classifications appear in the plot.
   scale_color_discrete(breaks = c("Active", "Controlling", "Sterile")) +
   geom_line(linewidth = 0.1,
             aes(group = exp,
                 color = classif))
+## Overlay the proprietary data if it is accessible.
+if (all(c("df_cfu", "df_flow") %in% ls())) {
+  plot_time <-
+    plot_time +
+    geom_point(data =
+                 bind_rows(df_cfu, df_flow) %>%
+                 mutate(output = outputs[output],
+                        time = time / 7),
+               size = 0.5)
+}
+plot_time
 ```
 
 ```{r session-info}
