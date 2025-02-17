@@ -14,6 +14,7 @@ library(tidyr)     # pivot_longer
 library(forcats)   # fct
 library(stringr)   # str_remove
 library(ggplot2)
+library(patchwork)
 ```
 
 ```{r config}
@@ -36,7 +37,7 @@ file_flow <-
   file.path(dir_data_proprietary, "ModelCalibrationCountLung_2018.csv")
 ```
 
-```{r prepare-inputs}
+```{r prepare-inputs-temporal}
 #| cache: true
 #| dependson: -1
 file_stat <-
@@ -57,7 +58,7 @@ df_runs
 outputs <-
   c(mac_scaled_ring = "Macrophages",
     tc_scaled_ring = "T cells",
-    tot_mtb_in_gran_scaled_ring = "Mtb")
+    tot_mtb_in_gran_scaled_ring = "CFU")
 df_std <-
   df_runs %>%
   ## Remove spaces and dots from column names.
@@ -71,9 +72,9 @@ df_std <-
            max(diff(tot_mtb_in_gran_scaled_ring[time >= max(time) - 20L &
                                                   time <= max(time)])) < 50
            ~ "Controlling",
-           .default = "Active"
+           .default = "Uncontrolled"
          ) %>%
-         fct(levels = c("Active", "Sterile", "Controlling")),
+         fct(levels = c("Uncontrolled", "Sterile", "Controlling")),
          .before = time) %>%
   ungroup() %>%
   ## Sum T cell counts.
@@ -118,7 +119,7 @@ df_flow <-
   pivot_longer(-time, names_to = "output")
 ```
 
-```{r figure-03-50k-sim}
+```{r plot-temporal}
 #| cache: true
 #| dependson:
 #| - -2
@@ -141,7 +142,7 @@ plot_time <-
   guides(color = guide_legend(override.aes = list(linewidth = 1))) +
   scale_y_log10(labels = scales::label_log()) +
   ## Reorder the legend to match how the classifications appear in the plot.
-  scale_color_discrete(breaks = c("Active", "Controlling", "Sterile")) +
+  scale_color_discrete(breaks = c("Uncontrolled", "Controlling", "Sterile")) +
   geom_line(linewidth = 0.1,
             aes(group = exp,
                 color = classif))
@@ -156,6 +157,81 @@ if (all(c("df_cfu", "df_flow") %in% ls())) {
                size = 0.5)
 }
 plot_time
+```
+
+```{r plot-spatial}
+#| cache: true
+#| fig.width: 6.5
+#| fig.height: 4.5
+load("data/mibi_cells.rda")
+gr_mac <- c(
+  "CD206+_Mac",
+  "CD11c+_Mac",
+  "CD14+_Mac_Mono",
+  "CD163+Mac",
+  "CD14+CD11c+_Mac",
+  "CD68+_Mac",
+  "FN1+_Mac"
+)
+df_cells <-
+  mibi_cells %>%
+  ## Only choose non-sterilizing granulomas with a single necrotic core.
+  filter(sample == "sample9") %>%
+  mutate(agent = case_when(
+    cell_type %in% gr_mac ~ "Macrophages",
+    cell_type == "CD4+Tcell" ~ "CD4+ T cells",
+    cell_type == "CD8+Tcell" ~ "CD8+ T cells",
+    cell_type == "HLADR+_APC" ~ "Dendritic cells",
+    str_detect(cell_type, "Fibro$") ~ "Fibroblasts",
+    str_detect(cell_type, "Neutrophil") ~ "Neutrophils",
+    .default = "Other cells"))
+names <-
+  c("Macrophages", "CD4+ T cells", "CD8+ T cells", "Dendritic cells",
+    "Fibroblasts", "Neutrophils", "Other cells")
+colors <- scales::hue_pal()(
+  length(names) - 1) %>%
+  ## Other (O) agents not represented in GranSim should be gray.
+  append("#BBBBBB")
+colors <- setNames(colors[c(5, 3, 1, 2, 6, 4, 7)], names)
+## Plot image of binned agents.
+plot_space <-
+  df_cells %>%
+  mutate(sample = fct_relabel(sample, ~ str_c("MIBI-TOF ", .x)),
+         agent = factor(agent, names)) %>%
+  ggplot(aes(x, y, color = agent)) +
+  facet_wrap(~ fct_reorder(sample, as.integer(str_extract(sample, "\\d+"))),
+             ncol = 6, scales = "free") +
+  geom_point(size = 0.5, data = . %>% filter(agent == "Other")) +
+  geom_point(size = 0.5, data = . %>% filter(agent != "Other")) +
+  scale_color_manual(values = colors) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_bw() +
+  theme(aspect.ratio = 1,
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.text = element_text(hjust = 0)) +
+  labs(color = "Agent") +
+  ## Increase size of points in legend https://stackoverflow.com/a/15059196
+  guides(color = guide_legend(override.aes = list(size = 5)))
+plot_space
+```
+
+```{r figure-03-50k-sim}
+#| cache: true
+#| dependson:
+#| - -2
+#| - -1
+#| fig.width: 6.5
+#| fig.height: 6
+plot_space /
+  plot_time +
+  plot_layout(heights = c(4.5, 1.5)) +
+  plot_annotation(tag_levels = "A")
 ```
 
 ```{r session-info}

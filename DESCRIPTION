@@ -23,6 +23,7 @@ Suggests:
     ggrepel,
     hdf5r,
     Matrix,
+    patchwork,
     projpred,
     purrr,
     readr,
