@@ -73,7 +73,7 @@ df_cells_sub %>%
         axis.ticks.y = element_blank(),
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        legend.text.align = 0) +
+        legend.text = element_text(hjust = 0)) +
   labs(color = "Agent") +
   ## Increase size of points in legend https://stackoverflow.com/a/15059196
   guides(color = guide_legend(override.aes = list(size = 5)))
