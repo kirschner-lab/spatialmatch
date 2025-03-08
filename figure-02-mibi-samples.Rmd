@@ -64,6 +64,15 @@ df_cells_sub %>%
   facet_wrap(~ fct_reorder(sample, as.integer(str_extract(sample, "\\d+"))),
              ncol = 6, scales = "free") +
   geom_point(size = 0.5) +
+  geom_line(data =
+              df_cells_sub |>
+              group_by(sample) |>
+              reframe(across(x:y, range)) |>
+              group_by(sample) |>
+              ## Add 500 micron scale bars to the bottom right.
+              reframe(x = quantile(x, 0.95) + c(-500, 0),
+                      y = quantile(y, 0.05) + c(0, 0)),
+            aes(color = NULL)) +
   scale_color_manual(values = colors) +
   theme_bw() +
   theme(aspect.ratio = 1,
@@ -74,9 +83,11 @@ df_cells_sub %>%
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         legend.text = element_text(hjust = 0)) +
-  labs(color = "Agent") +
+  labs(color = "Cell types") +
   ## Increase size of points in legend https://stackoverflow.com/a/15059196
-  guides(color = guide_legend(override.aes = list(size = 5)))
+  guides(color = guide_legend(override.aes = list(size = 5,
+                                                  ## Don't draw lines.
+                                                  linetype = 0)))
 ```
 
 ```{r session-info}
