@@ -14,6 +14,9 @@ library(tidyr)     # pivot_longer
 library(forcats)   # fct
 library(stringr)   # str_remove
 library(ggplot2)
+library(png)       # readPNG
+library(grid)      # rasterGrob
+library(ggpp)      # geom_grob
 library(patchwork)
 ```
 
@@ -162,63 +165,175 @@ plot_time
 ```{r plot-spatial}
 #| cache: true
 #| fig.width: 6.5
-#| fig.height: 4.5
-load("data/mibi_cells.rda")
-gr_mac <- c(
-  "CD206+_Mac",
-  "CD11c+_Mac",
-  "CD14+_Mac_Mono",
-  "CD163+Mac",
-  "CD14+CD11c+_Mac",
-  "CD68+_Mac",
-  "FN1+_Mac"
-)
-df_cells <-
-  mibi_cells %>%
-  ## Only choose non-sterilizing granulomas with a single necrotic core.
-  filter(sample == "sample9") %>%
-  mutate(agent = case_when(
-    cell_type %in% gr_mac ~ "Macrophages",
-    cell_type == "CD4+Tcell" ~ "CD4+ T cells",
-    cell_type == "CD8+Tcell" ~ "CD8+ T cells",
-    cell_type == "HLADR+_APC" ~ "Dendritic cells",
-    str_detect(cell_type, "Fibro$") ~ "Fibroblasts",
-    str_detect(cell_type, "Neutrophil") ~ "Neutrophils",
-    .default = "Other cells"))
-names <-
-  c("Macrophages", "CD4+ T cells", "CD8+ T cells", "Dendritic cells",
-    "Fibroblasts", "Neutrophils", "Other cells")
-colors <- scales::hue_pal()(
-  length(names) - 1) %>%
-  ## Other (O) agents not represented in GranSim should be gray.
-  append("#BBBBBB")
-colors <- setNames(colors[c(5, 3, 1, 2, 6, 4, 7)], names)
-## Plot image of binned agents.
+#| fig.height: 2.3
+files_spatial_meta <-
+  file.path(dir_data,
+            "2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k",
+            "runlist-metadata.csv")
+files_spatial <-
+  file.path(dir_data,
+            "2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k",
+            "exp*",
+            "exp*",
+            "exp*umpng") |>
+  Sys.glob()
+files_thumbnail <-
+  file.path(dir_data,
+            "2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k",
+            "images",
+            "*.png") |>
+  Sys.glob()
+
+## Plot grviz-lung rendered PNG images with legend thumbnails.
 plot_space <-
-  df_cells %>%
-  mutate(sample = fct_relabel(sample, ~ str_c("MIBI-TOF ", .x)),
-         agent = factor(agent, names)) %>%
-  ggplot(aes(x, y, color = agent)) +
-  facet_wrap(~ fct_reorder(sample, as.integer(str_extract(sample, "\\d+"))),
-             ncol = 6, scales = "free") +
-  geom_point(size = 0.5, data = . %>% filter(agent == "Other")) +
-  geom_point(size = 0.5, data = . %>% filter(agent != "Other")) +
-  scale_color_manual(values = colors) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
+  read_csv(files_spatial_meta, col_types = c(classif = "f", ntile = "i")) |>
+  right_join(
+    tibble(path = files_spatial,
+           ## grviz-lung fixes the calibration bar size as 1/3rd the image
+           ## width.
+           cal =
+             files_spatial |>
+             basename() |>
+             str_extract("(\\d+[.]\\d+)um", group = 1) |>
+             as.numeric(),
+           exp =
+             path |>
+             basename() |>
+             str_extract("^exp(\\d+)", group = 1) |>
+             str_c(".1") |>
+             as.numeric()),
+    by = "exp") |>
+  mutate(classif = fct_relabel(classif, function(x) {
+    sprintf("%s\nCFU = %s", x, format(round(CFU), trim = TRUE, big.mark = ","))
+  })) |>
+  ggplot() +
+  lims(x = c(0, 512),
+       y = c(0, 512)) +
   theme_bw() +
-  theme(aspect.ratio = 1,
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks.x = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        legend.text = element_text(hjust = 0)) +
-  labs(color = "Agent") +
-  ## Increase size of points in legend https://stackoverflow.com/a/15059196
-  guides(color = guide_legend(override.aes = list(size = 5)))
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank()) +
+  coord_fixed(expand = FALSE) +
+  facet_wrap(~ classif) +
+  geom_grob(aes(x = 256,
+                y = 256,
+                label = img),
+            data =
+              . %>%
+              mutate(img =
+                       path |>
+                       lapply(readPNG) |>
+                       lapply(rasterGrob)),
+            vp.width = 1,
+            vp.height = 1) +
+  geom_line(data =
+              . %>%
+              group_by(classif) %>%
+              reframe(x =
+                        ## grviz-lung fixes the calibration bar to 0.3 of the
+                        ## image width.  Re-normalize to 500um.
+                        -c(0, 0.3 * cal * (500 / cal)) +
+                        quantile(c(0, 512), 0.95),
+                      y = quantile(c(0, 512), 0.05)),
+            aes(x = x, y = y, group = classif),
+            color = "white")
 plot_space
+
+names <-
+  c(## Macropahges.
+    "Resting" = "mac-resting.png",
+    "Activated" = "mac-active.png",
+    "Infected" = "mac-infected.png",
+    "Chronically~infected" =  "mac-chronically-infected.png",
+    ## T cells.
+    "Cytotoxic" = "tcyt.png",
+    "Regulatory" = "treg.png",
+    "IFN~gamma~producing" = "tgam.png",
+    ## Mtb.
+    "Mtb" = "mtb-non-square.png",
+    ## Grid.
+    "Caseation" = "caseation.png")
+stopifnot(all(names %in% basename(files_thumbnail)))
+## Plot legend tumbnails.
+df_thumb <-
+  tibble(cell = names(names),
+         basename = setNames(names, NULL)) |>
+  left_join(tibble(path = files_thumbnail,
+                   basename = basename(path)),
+            by = "basename") |>
+  mutate(group = case_when(
+    str_detect(basename, "^mac-") ~ "Macrophages",
+    str_detect(basename, "^t.{3}[.]") ~ "T cells",
+    str_detect(basename, "^mtb") ~ "CFU",
+    .default = "Grid"),
+    .before = 1L) |>
+  mutate(image =
+           path |>
+           lapply(readPNG) |>
+           lapply(rasterGrob)) |>
+  select(-basename,
+         -path)
+layout <- "
+AFJ
+BGK
+CHL
+DIM
+E##
+"
+plot_titles <-
+  lapply(c(1, 5, 8, 9), function(i) {
+    wrap_elements(panel = textGrob(df_thumb[i, "group"],
+                                   x = unit(0, "npc"),
+                                   just = "left",
+                                   gp = gpar(fontsize = 8.5)),
+                  clip = FALSE) +
+      theme(plot.tag = element_blank())
+  })
+plot_thumbnails <-
+  lapply(1:9, function(i) {
+    ggplot() +
+      geom_grob(aes(x = 0L,
+                    y = 0L,
+                    label = image),
+                data = df_thumb[i, "image"],
+                vp.width = 1,
+                vp.height = 1) +
+      labs(y = parse(text = pull(df_thumb[i, "cell"]))) +
+      coord_fixed() +
+      theme(plot.tag = element_blank())
+  })
+plot_space_legend <-
+  ## Macrophages.
+  plot_titles[[1]] +
+  plot_thumbnails[[1]] +
+  plot_thumbnails[[2]] +
+  plot_thumbnails[[3]] +
+  plot_thumbnails[[4]] +
+  ## T cells.
+  plot_titles[[2]] +
+  plot_thumbnails[[5]] +
+  plot_thumbnails[[6]] +
+  plot_thumbnails[[7]] +
+  ## CFU.
+  plot_titles[[3]] +
+  plot_thumbnails[[8]] +
+  ## Grid.
+  plot_titles[[4]] +
+  plot_thumbnails[[9]] +
+  plot_layout(design = layout) &
+  ## Place y-axis on right per https://stackoverflow.com/a/54828826
+  scale_y_continuous(position = "right",
+                     sec.axis = dup_axis()) &
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y.left = element_blank(),
+        axis.title.y.right = element_text(angle = 0,
+                                          hjust = 0,
+                                          vjust = 0.5,
+                                          size = 8.5),
+        plot.margin = unit(rep(0, 4), "cm"))
+plot_space_legend
 ```
 
 ```{r figure-03-50k-sim}
@@ -227,10 +342,11 @@ plot_space
 #| - -2
 #| - -1
 #| fig.width: 6.5
-#| fig.height: 6
-plot_space /
-  plot_time +
-  plot_layout(heights = c(4.5, 1.5)) +
+#| fig.height: 7
+free(plot_time) /
+  free(plot_space) /
+  plot_space_legend +
+  plot_layout(heights = c(1, 1, 0.5)) +
   plot_annotation(tag_levels = "A")
 ```
 
