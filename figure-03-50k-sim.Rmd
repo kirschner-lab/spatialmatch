@@ -228,6 +228,7 @@ plot_space <-
             vp.height = 1) +
   geom_line(data =
               . %>%
+              filter(classif == classif[1]) %>%
               group_by(classif) %>%
               reframe(x =
                         ## grviz-lung fixes the calibration bar to 0.3 of the
