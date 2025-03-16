@@ -46,7 +46,13 @@ read_prcc <- function(path) {
   param_names <-
     read_cellarray_as_characters("paramNames")
   ## Dimensions = [timepoints, outputs, parameters]
-  arr <- prcc_result[["uncorrectedPrcc"]]$read()
+  prcc <- prcc_result[["uncorrectedPrcc"]]$read()
+  ## Note that significance-corrected PRCV values in the HDF5 file simply
+  ## replace insiginificant values, defined as those values that exceed a
+  ## threshold, alpha, with NAs.  Therefore, instead read the more informative
+  ## PRCC p-values before they are NA replaced.
+  signif_uncorr <- prcc_result[["uncorrectedSignificance"]]$read()
+  signif_bh <- prcc_result[["bhfdrSignificance"]]$read()
   h5$close_all()
   enframe_matrix <- function(mat, name) {
     ## Coercing the array to a tibble causes the first dimension to become the
@@ -63,13 +69,28 @@ read_prcc <- function(path) {
       mutate(value = ifelse(value == 1L, NA, value)) %>%
       rename(all_of(setNames(c("value"), name)))
   }
+  enframe_matrices <- function(lists) {
+    stopifnot(is.list(lists))
+    stopifnot(! is.null(names(lists)))
+    dfs <- map2(lists, names(lists), enframe_matrix)
+    if (length(dfs) > 1) {
+      dfs <-
+        c(dfs[[1]],
+          dfs[-1] |>
+            map(~ select(.x, last_col())))
+    }
+    bind_cols(dfs)
+  }
   n_outputs <- length(output_names)
   n_params <- length(param_names)
-  enframe_matrix(arr, "prcc")
+  enframe_matrices(list(prcc = prcc,
+                        signif_uncorr = signif_uncorr,
+                        signif_bh = signif_bh))
 }
 df_prcc_h5 <- read_prcc(file_prcc)
 df_prcc <-
   df_prcc_h5 %>%
+  mutate(across(starts_with("signif"), ~ pmin(.x, 1))) %>%
   ## Remove parameter prefix.
   mutate(param = str_remove(param, "GR[.]")) %>%
   ## Remove uninteresting parameters.
@@ -124,6 +145,8 @@ df_prcc <-
         "Cytotoxic T cells" = "Tcyt ScaledRing",
         "Regulatory T cells" = "Treg ScaledRing",
         "CFU" = "TotMtbInGranScaledRing"))
+## Note that the significance columns are for individual PRCC values; this
+## next test is for the lines.
 df_prcc_signif <-
   df_prcc %>%
   drop_na() %>%
@@ -132,8 +155,7 @@ df_prcc_signif <-
   ungroup() %>%
   distinct(output, param) %>%
   mutate(week = 22L) %>%
-  left_join(df_prcc %>%
-              select(output, param, week, prcc),
+  left_join(df_prcc,
             by = c("week", "output", "param"))
 ###############################################################################
 ## Begin block to ensure intersecting parameter lines have different colors.
@@ -290,6 +312,9 @@ df_prcc %>%
                              distinct(df_prcc_signif, param, output),
                              by = c("param", "output"))) +
   geom_line(aes(color = color_id)) +
+  geom_point(data = . %>% filter(signif_bh < 0.05),
+             aes(color = color_id),
+             size = 0.5) +
   geom_text_repel(aes(label = str_wrap(param, width = 16L),
                       color = color_id),
                   lineheight = 0.8,
