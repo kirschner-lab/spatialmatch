@@ -7,5 +7,5 @@ rmd_files:
 - figure-03-50k-sim.Rmd
 - figure-04-clust-pred-features.Rmd
 - figure-05-cfu-vs-smoothed-density.Rmd
-- figure-06-ot-trajectories.Rmd
+- figure-06-07-ot-trajectories-and-images.Rmd
 - figure-08-prcc.Rmd

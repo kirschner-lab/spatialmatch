@@ -1,4 +1,4 @@
-# Figure 6
+# Figures 6 and 7
 
 ```{r imports}
 #| cache: false
@@ -11,6 +11,7 @@ library(stringr)
 library(tidyr)
 library(forcats)
 library(ggplot2)
+library(EBImage)
 ```
 
 ## Toy example of digital partners
@@ -370,7 +371,7 @@ df_with_ot <-
             by = c("sample", "exp"))
 ```
 
-```{r figure-06-ot-trajectories.Rmd}
+```{r figure-06-ot-trajectories}
 #| cache: true
 #| dependson: -1
 #| fig.width: 6.5
@@ -435,6 +436,149 @@ df_with_ot %>%
   ## Remove padding around between data and axes.
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_log10(labels = scales::label_log())
+```
+
+```{r figure-07-ot-images}
+#| cache: true
+#| dependson: -2
+## Plot images of experimental data and top-3 digitally paired granulomas.
+##
+## For each experimental sample, plot 3x3 partner images with the first row
+## being experimental tissue (MIBI-TOF) and the each of the subsequent rows
+## being timepoints from a paired granuloma simulation (weeks 4, 11, 22).
+
+## Import TIFF images generated using the data-raw/merge.ijm ImageJ script.
+dir_im_gransim <- file.path(dir_data, "2024-07-19-A-gr-50k", "img_stacks")
+dir_im_mibi <- file.path(dir_data, "2024-07-19-A-gr-50k", "img_stacks_mibi")
+## Add file paths to each dataset.
+df_im <-
+  df_with_ot %>%
+  drop_na() %>%
+  arrange(sample, rep)
+df_im <-
+  df_im %>%
+  inner_join(distinct(df_im, sample) %>%
+               group_by(sample) %>%
+               mutate(path_mibi =
+                        str_remove(sample, "sample") %>%
+                        str_c("*/exp", ., "_*.tif") %>%
+                        fs::dir_ls(dir_im_mibi, glob = .)),
+             by = "sample") %>%
+  inner_join(distinct(df_im, exp) %>%
+               group_by(exp) %>%
+               reframe(path_gransim =
+                         str_c("*/exp", exp, "_*.tif") %>%
+                         fs::dir_ls(dir_im_gransim, glob = .) %>%
+                         gtools::mixedsort()),
+             by = "exp")
+## The uncompressed TIFF images are relatively large, so only read and save one
+## image set at a time.
+##
+#' Create composite color image from the 3 channels.
+im_color <- function(path,
+                     colors = c("#0000ff", "#00ff00", "#ffffff"),
+                     pixels_to_crop = 100,
+                     add_scalebar = FALSE,
+                     scalebar_microns = 500) {
+  im <- suppressWarnings(readImage(path))
+  ## Create composite image.
+  im_c <- imageData(im)
+  for (ch in seq_len(numberOfFrames(im))) {
+    im_ch <- im_c[, , ch]
+    mask <- im_ch > 0
+    im_ch[mask] <- colors[ch]
+    im_ch[! mask] <- "#000000"
+    im_c[, , ch] <- im_ch
+  }
+  ## Creates additional color channel dimension [x, y, ch, color].
+  im_c <- Image(im_c)
+  ## Merge channels.
+  im_max <- rowSums(imageData(im_c), dims = 3)
+  ## Crop image
+  by <- pixels_to_crop
+  idx <- (1 + by):(dim(im_max)[1] - by)
+  im_max <- im_max[idx, idx, ]
+  if (add_scalebar) {
+    ## Add 500 micron scale bar to bottom right.
+    width <- scalebar_microns / 20
+    height <- 2
+    offset <- 5
+    x <- dim(im_max)[1]
+    ## Sometimes the scale bar overlaps with white pixels, so invert
+    ## the color instead of setting to white.
+    im_max[x - (offset + 1:width), x - (offset + 1:height), ] <-
+      1 - im_max[x - (offset + 1:width), x - (offset + 1:height), ]
+  }
+  ## Return final color image.
+  Image(im_max, colormode = "Color")
+}
+dir_fig_suppl <- knitr::opts_chunk$get("fig.path")
+n_groups <-
+  df_im %>%
+  group_by(sample) %>%
+  n_groups()
+for (i in seq_len(n_groups)) {
+  df <-
+    df_im %>%
+    group_by(sample) %>%
+    nest() %>%
+    ungroup() %>%
+    slice(i) %>%
+    unnest(data)
+  path_mibi <-
+    df %>%
+    distinct(path_mibi) %>%
+    pull()
+  ## Read in the MIBI image.
+  im_mibi <- im_color(path_mibi, add_scalebar = TRUE)
+  ## Pad the MIBI image on the left and right sides.
+  im_blank <- im_mibi
+  imageData(im_blank) <- array(1L,
+                               dim = dim(im_blank),
+                               dimnames = dimnames(im_blank))
+  ims_mibi <- combine(im_blank, im_mibi, im_blank)
+  ## Read in the GranSim images.
+  path_gransim <-
+    df %>%
+    distinct(path_gransim) %>%
+    pull()
+  ims_gransim <- combine(lapply(path_gransim, im_color))
+  ims <- combine(ims_mibi, ims_gransim)
+  display(ims,
+          method = "raster",
+          all = TRUE,
+          nx = 3L)
+  ## Add subfigure labels.
+  subfig <- c(NA, LETTERS[1], NA, LETTERS[2:10])
+  ncol <- 3
+  for (i in seq_along(subfig)) {
+    if (! is.na(subfig[i])) {
+      row <- (i - 1) %/% ncol + 1
+      col <- (i - 1) %% ncol + 1
+      offset <- 10
+      mul <- dim(ims)[1]
+      x <- mul * (row - 1) + offset
+      y <- mul * (col - 1) + offset
+      text(subfig[i],
+           x = y,
+           y = x,
+           col = "white")
+    }
+  }
+  path_fig_suppl <-
+    fs::path(dir_fig_suppl,
+             sprintf("%s.png",
+                     df %>%
+                       distinct(sample) %>%
+                       pull()))
+  dev.print(png,
+            path_fig_suppl,
+            width = 300,
+            height = 400,
+            units = "px",
+            res = 100)
+  message("Saved ", path_fig_suppl)
+}
 ```
 
 ```{r session-info}
