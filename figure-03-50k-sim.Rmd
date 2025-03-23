@@ -140,6 +140,7 @@ plot_time <-
        y = "Cell counts",
        color = "Classification") +
   theme_bw() +
+  theme(legend.position = "top") +
   ## The subsequent geom_line(linewidth = 0.1, ...) setting will make the
   ## legend harder to see, so reset the legend to the default linewidth.
   guides(color = guide_legend(override.aes = list(linewidth = 1))) +
@@ -344,8 +345,8 @@ plot_space_legend
 #| - -1
 #| fig.width: 6.5
 #| fig.height: 7
-free(plot_time) /
-  free(plot_space) /
+plot_time /
+  plot_space /
   plot_space_legend +
   plot_layout(heights = c(1, 1, 0.5)) +
   plot_annotation(tag_levels = "A")
