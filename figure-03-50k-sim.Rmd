@@ -98,28 +98,28 @@ df_std
 ```{r prepare-inputs-proprietary}
 #| cache: true
 #| dependson: -1
-#| eval: |
-#|   `all(file.exists(file_cfu, file_flow))`
 ## Read in reference CFU and flowcytometry datasets.
-df_cfu <-
-  read_csv(file_cfu, col_select = c(3, 1, 2), show_col_types = FALSE) %>%
-  rename_with(to_snake_case) %>%
-  ## Remove single outlier diameter.
-  dplyr::filter(granuloma_diameter_mm >= 0.5) %>%
-  select(-granuloma_diameter_mm) %>%
-  pivot_longer(-time, names_to = "output") %>%
-  ## Ignore sterilization for now.
-  dplyr::filter(value > 0)
-df_flow <-
-  read_csv(file_flow, show_col_types = FALSE) %>%
-  ## Map columns to GranSim agents.
-  dplyr::rename(time = Timepoint,
-                tc_scaled_ring = "CD3") %>%
-  mutate(mac_scaled_ring = `CD11b+` - `CD11b+/Calp+`) %>%
-  ## Remove untreated control.
-  dplyr::filter(time > 0) %>%
-  dplyr::select(time, any_of(names(outputs))) %>%
-  pivot_longer(-time, names_to = "output")
+if (all(file.exists(file_cfu, file_flow))) {
+  df_cfu <-
+    read_csv(file_cfu, col_select = c(3, 1, 2), show_col_types = FALSE) %>%
+    rename_with(to_snake_case) %>%
+    ## Remove single outlier diameter.
+    dplyr::filter(granuloma_diameter_mm >= 0.5) %>%
+    select(-granuloma_diameter_mm) %>%
+    pivot_longer(-time, names_to = "output") %>%
+    ## Ignore sterilization for now.
+    dplyr::filter(value > 0)
+  df_flow <-
+    read_csv(file_flow, show_col_types = FALSE) %>%
+    ## Map columns to GranSim agents.
+    dplyr::rename(time = Timepoint,
+                  tc_scaled_ring = "CD3") %>%
+    mutate(mac_scaled_ring = `CD11b+` - `CD11b+/Calp+`) %>%
+    ## Remove untreated control.
+    dplyr::filter(time > 0) %>%
+    dplyr::select(time, any_of(names(outputs))) %>%
+    pivot_longer(-time, names_to = "output")
+}
 ```
 
 ```{r plot-temporal}
