@@ -18,31 +18,12 @@ library(png)       # readPNG
 library(grid)      # rasterGrob
 library(ggpp)      # geom_grob
 library(patchwork)
-```
 
-```{r config}
-#| cache: true
-#| cache.vars:
-#| - dir_data
-#| - ticks_per_day
-#| - file_cfu
-#| - file_flow
 source("R/config.R")
-
-## Files containing proprietary calibration data.  These a may or may not be
-## present when generating the plot.
-dir_data_proprietary <-
-  file.path("~/immunology/GR-ABM-ODE/simulation/scripts",
-            "calibration/abc/src/gransimcal/data")
-file_cfu <-
-  file.path(dir_data_proprietary, "CombinedCFU_updateUponMoreData.csv")
-file_flow <-
-  file.path(dir_data_proprietary, "ModelCalibrationCountLung_2018.csv")
 ```
 
 ```{r prepare-inputs-temporal}
 #| cache: true
-#| dependson: -1
 file_stat <-
   file.path(dir_data,
             "2024-07-19-A-gr-50k",
@@ -98,6 +79,15 @@ df_std
 ```{r prepare-inputs-proprietary}
 #| cache: true
 #| dependson: -1
+## Files containing proprietary calibration data.  These a may or may not be
+## present when generating the plot.
+dir_data_proprietary <-
+  file.path("~/immunology/GR-ABM-ODE/simulation/scripts",
+            "calibration/abc/src/gransimcal/data")
+file_cfu <-
+  file.path(dir_data_proprietary, "CombinedCFU_updateUponMoreData.csv")
+file_flow <-
+  file.path(dir_data_proprietary, "ModelCalibrationCountLung_2018.csv")
 ## Read in reference CFU and flowcytometry datasets.
 if (all(file.exists(file_cfu, file_flow))) {
   df_cfu <-

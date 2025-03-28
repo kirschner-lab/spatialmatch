@@ -12,6 +12,8 @@ library(tidyr)
 library(forcats)
 library(ggplot2)
 library(EBImage)
+
+source("R/config.R")
 ```
 
 ## Toy example of digital partners
@@ -109,17 +111,8 @@ df_pairs
 
 ## Actual digital partners plot
 
-```{r config}
-#| cache: true
-#| cache.vars:
-#| - dir_data
-#| - ticks_per_day
-source("R/config.R")
-```
-
 ```{r prepare-inputs}
 #| cache: true
-#| dependson: -1
 file_elpd <-
   file.path(dir_data,
             "2024-09-03-A-varsel-50k",

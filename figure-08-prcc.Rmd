@@ -12,19 +12,12 @@ library(purrr)
 library(Matrix)  # spMatrix
 library(Rglpk)   # Rglpk_solve_LP
 library(ggrepel) # geom_text_repel
-```
 
-```{r prepare-inputs}
-#| cache: true
-#| cache.vars:
-#| - dir_data
-#| - ticks_per_day
 source("R/config.R")
 ```
 
 ```{r figure-08-prcc}
 #| cache: true
-#| dependson: -1
 #| fig.width: 5.2
 #| fig.height: 6.5
 file_prcc <-

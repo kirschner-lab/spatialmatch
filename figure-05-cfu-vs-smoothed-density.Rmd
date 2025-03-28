@@ -13,19 +13,12 @@ ncores <- parallel::detectCores(logical = FALSE)
 options(mc.cores = ncores)
 library(bayesplot)
 library(ggplot2)
-```
 
-```{r config}
-#| cache: true
-#| cache.vars:
-#| - dir_data
 source("R/config.R")
 ```
 
 ```{r prepare-inputs}
 #| cache: true
-#| dependson: -1
-
 file_stats <-
   file.path(dir_data,
             "2024-06-14-A-gs-5000",
