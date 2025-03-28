@@ -154,7 +154,8 @@ ppc_dens_overlay(y = df$mtb,
   scale_color_manual(labels = c("Simulated", "Regression predicted"),
                      values = bayesplot:::get_color(c("dh", "lh"))) +
   geom_rug(data = tibble(value = df$mtb), alpha = 0.08) +
-  theme(legend.position = c(.2, .9),
+  theme(legend.position = "inside",
+        legend.position.inside = c(.2, .9),
         text = element_text(family = "sans"))
 ```
 
