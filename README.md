@@ -21,12 +21,15 @@
   ```r
   ## Install the dependencies:
   install.packages(c("BiocManager", "remotes"))
-  options(repos = BiocManager::repositories())
+  options(repos = BiocManager::repositories(), Ncpus = parallel::detectCores())
   remotes::install_deps(dependencies = TRUE)
 
   ## Build the RMarkdown book:
   bookdown::render_book()
   ```
+
+  The above workflow has been tested on Ubuntu 24.10 GNU/Linux, Windows 11, and
+  macOS 15.3.
 
 - An additional download contains the job submission scripts that generate the
   input data.  However, these scripts are fairly specific to the compute
