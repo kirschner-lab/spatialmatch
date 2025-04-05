@@ -19,7 +19,10 @@ load("data/mibi_cells.rda")
 samples <-
   meta %>%
   select(sample, gran_cfu) %>%
-  mutate(sample = fct_inorder(sample)) %>%
+  mutate(sample =
+           sample %>%
+           str_replace("sample", "Sample ") %>%
+           fct_inorder()) %>%
   filter(gran_cfu > 0) %>%
   pull(sample)
 gr_mac <- c(
@@ -33,6 +36,7 @@ gr_mac <- c(
 )
 df_cells <-
   mibi_cells %>%
+  mutate(sample = str_replace(sample, "sample", "Sample ")) %>%
   ## Only choose non-sterilizing granulomas with a single necrotic core.
   filter(sample %in% samples) %>%
   mutate(agent = case_when(

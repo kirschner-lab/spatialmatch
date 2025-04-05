@@ -370,6 +370,9 @@ df_with_ot <-
 #| fig.width: 6.5
 #| fig.height: 5.5
 ## Plot trajectories of the top-3 paired and all candidate granulomas.
+relabel <- function(x) {
+  str_c("DPs of ", str_replace(x, "sample", "Sample "))
+}
 n_colors <- 6L
 df_with_ot %>%
   inner_join(df_gs_traj_all,
@@ -379,7 +382,7 @@ df_with_ot %>%
   rename(cfu = TotMtbInGranScaledRing) %>%
   mutate(log_cfu = log1p(cfu) / log1p(9),
          time = time / 7L,
-         sample = fct_relabel(sample, ~ str_c("DPs of ", .x))) %>%
+         sample = fct_relabel(sample, relabel)) %>%
   group_by(sample, exp) %>%
   mutate(color_id =
            (cur_group_id() - 1L) %% n_colors %>%
@@ -391,10 +394,10 @@ df_with_ot %>%
   theme_bw() +
   theme(legend.direction = "horizontal",
         legend.position = "inside",
-        legend.position.inside = c(1, 0),
+        legend.position.inside = c(1, 0.05),
         legend.justification = c("right", "center"),
         legend.title.position = "top",
-        strip.text = element_text(size = 8.4)) +
+        strip.text = element_text(size = 8)) +
   labs(x = "Week (post-infection)",
        y = "CFU counts",
        linetype = "Rank of digital partner") +
@@ -409,14 +412,14 @@ df_with_ot %>%
   geom_point(data =
                df_mibi_traj %>%
                rename(cfu = gran_cfu) %>%
-               mutate(sample = fct_relabel(sample, ~ str_c("DPs of ", .x)),
+               mutate(sample = fct_relabel(sample, relabel),
                       time = 11),
              aes(group = NULL,
                  color = NULL)) +
   geom_text(data =
               df_in_range %>%
               count(sample) %>%
-              mutate(sample = fct_relabel(sample, ~ str_c("DPs of ", .x)),
+              mutate(sample = fct_relabel(sample, relabel),
                      label = sprintf("n = %s", format(n, big.mark = ","))),
             aes(group = NULL,
                 color = NULL,
