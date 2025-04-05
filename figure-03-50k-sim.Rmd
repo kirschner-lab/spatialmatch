@@ -119,6 +119,7 @@ if (all(file.exists(file_cfu, file_flow))) {
 #| - -1
 #| fig.width: 6.5
 #| fig.height: 3
+colors <- palette.colors(4, palette = "Okabe-Ito")[-1]
 plot_time <-
   df_std %>%
   mutate(time = time / 7) %>%
@@ -136,7 +137,8 @@ plot_time <-
   guides(color = guide_legend(override.aes = list(linewidth = 1))) +
   scale_y_log10(labels = scales::label_log()) +
   ## Reorder the legend to match how the classifications appear in the plot.
-  scale_color_discrete(breaks = c("Uncontrolled", "Controlling", "Sterile")) +
+  scale_color_manual(breaks = c("Uncontrolled", "Controlling", "Sterile"),
+                     values = colors) +
   geom_line(linewidth = 0.1,
             aes(group = exp,
                 color = classif))

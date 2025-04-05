@@ -374,6 +374,7 @@ relabel <- function(x) {
   str_c("DPs of ", str_replace(x, "sample", "Sample "))
 }
 n_colors <- 6L
+colors <- palette.colors(n_colors + 1L, palette = "Okabe-Ito")[-1]
 df_with_ot %>%
   inner_join(df_gs_traj_all,
              by = "exp",
@@ -429,6 +430,7 @@ df_with_ot %>%
             hjust = -0.05,
             vjust = 1.4,
             size = 3) +
+  scale_color_manual(values = colors) +
   ## Remove padding around between data and axes.
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_log10(labels = scales::label_log())

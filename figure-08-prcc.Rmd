@@ -274,6 +274,9 @@ set_color_id <- function(param) {
 ###############################################################################
 weeks <- 22L
 x_max <- 35L
+color_palette <-
+  ## Remove yellow because is hard to see even for non-colorblind people.
+  palette.colors(max(colors) + 2L, palette = "Okabe-Ito")[-c(1, 5)]
 df_prcc %>%
   semi_join(df_prcc_signif %>%
               distinct(param, output),
@@ -330,6 +333,7 @@ df_prcc %>%
   geom_point(data = df_prcc_signif,
              size = 1,
              color = "black") +
+  scale_color_manual(values = color_palette) +
   ## Remove padding around between data and axes.
   scale_x_continuous(expand = c(0, 0),
                      ## No data at week 0.
