@@ -14,7 +14,7 @@ library(tidyr)     # pivot_longer
 library(forcats)   # fct
 library(stringr)   # str_remove
 library(ggplot2)
-library(png)       # readPNG
+library(magick)    # image_read
 library(grid)      # rasterGrob
 library(ggpp)      # geom_grob
 library(patchwork)
@@ -217,7 +217,7 @@ plot_space <-
               . %>%
               mutate(img =
                        path |>
-                       lapply(readPNG) |>
+                       lapply(image_read) |>
                        lapply(rasterGrob)),
             vp.width = 1,
             vp.height = 1) +
@@ -265,7 +265,8 @@ df_thumb <-
     .before = 1L) |>
   mutate(image =
            path |>
-           lapply(readPNG) |>
+           lapply(image_read) |>
+           lapply(image_modulate, brightness = 200) |>
            lapply(rasterGrob)) |>
   select(-basename,
          -path)
