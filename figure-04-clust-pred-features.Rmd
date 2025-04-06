@@ -171,9 +171,10 @@ ggheatmap(mat_full, filling = NULL) +
                       high = "gray90",
                       na.value = "white",
                       breaks = c(1, 18),
-                      labels = c("Better", "Worse"),
+                      labels = c("More\npredictive", "Less\npredictive"),
                       guide = guide_colorbar(reverse = TRUE)) +
-  theme(legend.position = "left") +
+  theme(legend.position = "left",
+        legend.text = element_text(vjust = 1)) +
   anno_left(size = unit(5, "char")) +
   align_dendro(k = n_clusters,
                distance = d,
