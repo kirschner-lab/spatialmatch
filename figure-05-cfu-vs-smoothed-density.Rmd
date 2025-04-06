@@ -122,7 +122,9 @@ rk <- ranking(cvvs)
 system.time({
   prj <- project(
     refm_obj,
-    predictor_terms = predictors_final
+    predictor_terms = predictors_final,
+    ## Don't show the noisy progress bar.
+    verbose = FALSE
   )
 })
 
