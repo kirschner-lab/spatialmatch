@@ -158,7 +158,10 @@ ppc_dens_overlay(y = df$mtb,
   geom_rug(data = tibble(value = df$mtb), alpha = 0.08) +
   theme(legend.position = "inside",
         legend.position.inside = c(.2, .9),
-        text = element_text(family = "sans"))
+        text = element_text(family = "sans")) +
+  ## Use default line width, otherwise the "Regression predicted" lines are too
+  ## thin to see easily.
+  guides(color = guide_legend(override.aes = list(linewidth = 1)))
 ```
 
 ```{r session-info}
