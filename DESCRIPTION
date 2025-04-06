@@ -22,6 +22,7 @@ Suggests:
     foreach,
     fs,
     ggalign,
+    ggbrace,
     ggplot2,
     ggpp,
     ggrepel,

@@ -12,6 +12,8 @@ library(tidyr)
 library(forcats)
 library(ggplot2)
 library(EBImage)
+library(magick)
+library(ggbrace) # geom_brace
 
 source("R/config.R")
 ```
@@ -436,7 +438,7 @@ df_with_ot %>%
   scale_y_log10(labels = scales::label_log())
 ```
 
-```{r figure-07-ot-images}
+```{r suppl-figure-ot-images}
 #| cache: true
 #| dependson: -2
 ## Plot images of experimental data and top-3 digitally paired granulomas.
@@ -577,6 +579,89 @@ for (i in seq_len(n_groups)) {
             res = 100)
   message("Saved ", path_fig_suppl)
 }
+```
+
+```{r figure-07-ot-images}
+#| cache: true
+#| dependson: -1
+#| fig.width: 6.5
+#| fig.height: 3
+
+## Read 3 digitally partnered images generated above to annotate them.
+if (! is.null(getOption("knitr.in.progress"))) {
+  dir_fig_suppl <- knitr::opts_chunk$get("fig.path")
+} else {
+  ## When interactively running outside the knitr environment, use the path
+  ## knitr used to generate the images from the previous block.
+  dir_fig_suppl <-
+    file.path("_bookdown_files",
+              "figure-06-07-ot-trajectories-and-images_files",
+              "figure-html")
+}
+samples <- c(33L, 17L, 57L)
+files_sample <- file.path(dir_fig_suppl, str_c("sample", samples, ".png"))
+df_label <-
+  tibble(x = rep(c(-25 + c(0, 25)), times = 2),
+         y = c(0, 300, 300, 400),
+         type = rep(c("GranSim", "MIBI-TOF"), each = 2))
+arrow_past <- function(o) {
+  annotate("segment", x = o - 55, y = 350, xend = o - 100, yend = 350,
+           linewidth = 3, linejoin = "mitre",
+           arrow = arrow(type = "closed", length = unit(2e-2, "npc")))
+}
+arrow_future <- function(o) {
+  annotate("segment", x = o + 55, y = 350, xend = o + 100, yend = 350,
+           linewidth = 3, linejoin = "mitre",
+           arrow = arrow(type = "closed", length = unit(2e-2, "npc")))
+}
+colors <- palette.colors(3, palette = "Okabe-Ito")[-1]
+image_read(files_sample) |>
+  image_montage(tile = "x1", geometry = "+25", gravity = "East") |>
+  image_trim() |>
+  image_ggplot() +
+  stat_brace(aes(group = type),
+             data = df_label,
+             rotate = 270,
+             outside = FALSE) +
+  stat_bracetext(aes(label = type,
+                     group = type),
+                 data = df_label,
+                 rotate = 270,
+                 outside = FALSE) +
+  geom_text(aes(label = sample),
+            data = tibble(sample = str_c("Sample ", samples),
+                          x = c(150, 500, 850),
+                          y = rep(400, times = 3)),
+            vjust = 0,
+            nudge_y = 10) +
+  arrow_past(150) + arrow_future(150) +
+  arrow_past(500) + arrow_future(500) +
+  arrow_past(850) + arrow_future(850) +
+  geom_tile(aes(fill = classif),
+            data = tibble(x = rep(c(312.5, 662.5, 1012.5), each = 3),
+                          y = rep(c(250, 150, 50), times = 3),
+                          classif = c(rep("Uncontrolled", 3),
+                                      rep("Controlling", 4),
+                                      rep("Uncontrolled", 2))),
+            width = 16, height = 94) +
+  labs(x = "Week",
+       fill = "Classification") +
+  scale_x_continuous(breaks = c(50, 150, 250, 400, 500, 600, 750, 850, 950),
+                     labels = rep(c(4, 11, 22), times = 3)) +
+  scale_fill_manual(breaks = c("Uncontrolled", "Controlling", "Sterile"),
+                    values = colors) +
+  coord_fixed(clip = "off",
+              expand = FALSE) +
+  theme(
+    ## Increasing the left and top plot margins to allow the stat_bracetext and
+    ## sample labels to be outside the plot area.
+    plot.margin = unit(c(0.3, 0, 0, 1.8), "cm"),
+    ## Show X-axis.
+    axis.text.x = element_text(),
+    axis.title.x = element_text(),
+    legend.position = "top",
+    legend.margin = margin(0, 0, 0, 0),
+    legend.box.margin = margin(-7, 0, 10, 0))
 ```
 
 ```{r session-info}
