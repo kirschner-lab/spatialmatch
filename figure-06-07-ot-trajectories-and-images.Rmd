@@ -581,13 +581,73 @@ for (i in seq_len(n_groups)) {
 }
 ```
 
-```{r figure-07-ot-images}
+```{r prepare-input-classif}
+#| cache: true
+#| dependson: -3
+## Whether GranSim granulomas are uncontrolled or controlling CFU.
+df_classif <-
+  df_pairs |>
+  filter(as.integer(rep) <= 3) |>
+  select(sample, exp, rep) |>
+  arrange(sample, rep) |>
+  inner_join(read_csv(file_gs_traj,
+                      col_type = "cid",
+                      col_select = c(exp, time, TotMtbInGranScaledRing)) |>
+               mutate(exp = as.integer(exp),
+                      time = time / ticks_per_day),
+             by = c("exp")) |>
+  ## Classify by Mtb level.
+  group_by(sample, exp, rep) |>
+  reframe(classif =
+            case_when(
+              TotMtbInGranScaledRing[time == max(time)] == 0 ~ "Sterile",
+              max(diff(TotMtbInGranScaledRing[time >= max(time) - 20L &
+                                              time <= max(time)])) < 50
+              ~ "Controlling",
+              .default = "Uncontrolled"
+            ) |>
+            fct(levels = c("Uncontrolled", "Sterile", "Controlling"))) |>
+  arrange(sample, rep) |>
+  group_by(sample) |>
+  mutate(agree =
+           case_when(
+             all(classif == "Uncontrolled") ~ "Uncontrolled",
+             all(classif == "Controlling") ~ "Controlling",
+             .default = "Mixed")) |>
+  ungroup()
+```
+
+```{r summarize-classif}
 #| cache: true
 #| dependson: -1
+## Tabulate outcome agreement.
+df_classif |>
+  mutate(sample = str_remove(sample, "^sample"),
+         rep = str_c("rank", rep)) |>
+  pivot_wider(id_cols = c(sample, agree),
+              names_from = rep,
+              values_from = classif) |>
+  print(n = Inf)
+
+## Count outcome agreement.
+df_classif |>
+  distinct(sample, agree) |>
+  count(agree) |>
+  mutate(percent = sprintf("%.1f", 100 * n / sum(n))) |>
+  print(n = Inf)
+```
+
+```{r figure-07-ot-images}
+#| cache: true
+#| dependson:
+#| - -3
+#| - -2
 #| fig.width: 6.5
 #| fig.height: 3
-
-## Read 3 digitally partnered images generated above to annotate them.
+samples <- c(4L, 33L, 54L)
+## Assume samples are sorted for the df_classif layer.
+stopifnot(all(diff(samples) >= 0))
+## Path to read 3 digitally partnered images generated above to annotate them.
 if (! is.null(getOption("knitr.in.progress"))) {
   dir_fig_suppl <- knitr::opts_chunk$get("fig.path")
 } else {
@@ -598,7 +658,6 @@ if (! is.null(getOption("knitr.in.progress"))) {
               "figure-06-07-ot-trajectories-and-images_files",
               "figure-html")
 }
-samples <- c(33L, 17L, 57L)
 files_sample <- file.path(dir_fig_suppl, str_c("sample", samples, ".png"))
 df_label <-
   tibble(x = rep(c(-25 + c(0, 25)), times = 2),
@@ -640,9 +699,10 @@ image_read(files_sample) |>
   geom_tile(aes(fill = classif),
             data = tibble(x = rep(c(312.5, 662.5, 1012.5), each = 3),
                           y = rep(c(250, 150, 50), times = 3),
-                          classif = c(rep("Uncontrolled", 3),
-                                      rep("Controlling", 4),
-                                      rep("Uncontrolled", 2))),
+                          classif =
+                            df_classif |>
+                            filter(sample %in% str_c("sample", samples)) |>
+                            pull(classif)),
             width = 16, height = 94) +
   labs(x = "Week",
        fill = "Classification") +
