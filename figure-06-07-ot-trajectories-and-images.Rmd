@@ -601,8 +601,10 @@ df_classif <-
   reframe(classif =
             case_when(
               TotMtbInGranScaledRing[time == max(time)] == 0 ~ "Sterile",
-              max(diff(TotMtbInGranScaledRing[time >= max(time) - 20L &
-                                              time <= max(time)])) < 50
+              (TotMtbInGranScaledRing[time == 154] -
+               TotMtbInGranScaledRing[time == 105]) <
+                1.1 * TotMtbInGranScaledRing[time == 105] |
+              TotMtbInGranScaledRing[time == 154] < 1e4
               ~ "Controlling",
               .default = "Uncontrolled"
             ) |>
@@ -644,7 +646,7 @@ df_classif |>
 #| - -2
 #| fig.width: 6.5
 #| fig.height: 3
-samples <- c(4L, 33L, 54L)
+samples <- c(4L, 33L, 57L)
 ## Assume samples are sorted for the df_classif layer.
 stopifnot(all(diff(samples) >= 0))
 ## Path to read 3 digitally partnered images generated above to annotate them.

@@ -53,8 +53,10 @@ df_std <-
          case_when(
            tot_mtb_in_gran_scaled_ring[time == max(time)] == 0
            ~ "Sterile",
-           max(diff(tot_mtb_in_gran_scaled_ring[time >= max(time) - 20L &
-                                                  time <= max(time)])) < 50
+           (tot_mtb_in_gran_scaled_ring[time == 154] -
+            tot_mtb_in_gran_scaled_ring[time == 105]) <
+             1.1 * tot_mtb_in_gran_scaled_ring[time == 105] |
+           tot_mtb_in_gran_scaled_ring[time == 154] < 1e4
            ~ "Controlling",
            .default = "Uncontrolled"
          ) %>%
@@ -74,6 +76,12 @@ df_std <-
   ## Use labels.
   mutate(output = outputs[output])
 df_std
+df_std |>
+  distinct(exp, classif) |>
+  count(classif) |>
+  mutate(percent = 100 * n / sum(n),
+         classif = fct_relevel(classif, "Sterile", after = Inf)) |>
+  arrange(classif)
 ```
 
 ```{r prepare-inputs-proprietary}
@@ -97,7 +105,7 @@ if (all(file.exists(file_cfu, file_flow))) {
     dplyr::filter(granuloma_diameter_mm >= 0.5) %>%
     select(-granuloma_diameter_mm) %>%
     pivot_longer(-time, names_to = "output") %>%
-    ## Ignore sterilization for now.
+    ## Ignore sterilization.
     dplyr::filter(value > 0)
   df_flow <-
     read_csv(file_flow, show_col_types = FALSE) %>%
