@@ -87,7 +87,7 @@ names_map <- c(
   "gran_Intensity_MeanIntensity_tnf_mean" =
     "TNF in granuloma",
   "mac_Children_macs_Count_mean" =
-    "Number of macrophages",
+    "1 / (Number of macrophages)",
   "mac_Neighbors_SecondClosestDistance_3_median" =
     "Distance from macrophage to second-closest cell",
   "mac_Neighbors_NumberOfNeighbors_3_mean" =
@@ -127,7 +127,7 @@ names_map <- c(
   "ts_AreaShape_FormFactor_mean" =
     "T cell distribution circularity",
   "t_gam_Children_t_gams_Count_mean" =
-    "Number of T cells activating macrophages"
+    "1 / (Number of T cells activating macrophages)"
 )
 ## Plot clustered heatmap.
 mat_full <-
