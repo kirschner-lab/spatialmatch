@@ -726,6 +726,44 @@ image_read(files_sample) |>
     legend.box.margin = margin(-7, 0, 10, 0))
 ```
 
+```{r figure-01-ot-matrix}
+#| cache: true
+#| dependson: -6
+#| fig.width: 2
+#| fig.height: 2
+
+## Unbalanced optimal transport plot for Figure 1.
+df_pairs |>
+  filter(rep == 1L) |>
+  arrange(lb) |>
+  mutate(sample =
+           fct_inorder(sample) |>
+           fct_rev()) |>
+  select(-rep, -exp) |>
+  rename(cfu_from = gran_cfu,
+         cfu_to = 2,
+         range_from = lb,
+         range_to = ub) |>
+  group_by(sample) |>
+  pivot_longer(-1, names_sep = "_", names_to = c("group", "type")) |>
+  pivot_wider(id_cols = 1:2, names_from = "group") |>
+  print() |>
+  ggplot(aes(x = range, y = sample)) +
+  theme_bw() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank()) +
+  scale_x_log10() +
+  geom_line() +
+  geom_point(data =
+               ## Only show CFU of virtual granulomas.
+               . %>%
+               filter(type != "from"),
+             aes(x = cfu),
+             size = 0.5)
+```
+
 ```{r session-info}
 #| cache: false
 sessionInfo()
