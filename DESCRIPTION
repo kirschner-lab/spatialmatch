@@ -14,6 +14,7 @@ Depends:
     R (>= 4.0)
 Suggests:
     bayesplot,
+    bookdown,
     doParallel,
     doRNG,
     dplyr,
