@@ -15,8 +15,9 @@ tightpage
   positioning,
   shapes.geometric              % dart
 }
-\usepackage{soul}               % \ul
 \usepackage{upgreek}            % \upgamma
+\usepackage{graphicx}
+\graphicspath{{~/modelruns/2025-05-16-A-fig-cp-workflow/img/}}
 
 \begin{document}
 \begin{preview}
@@ -26,7 +27,13 @@ tightpage
       draw,
       fill = white,
       minimum width = 1.2cm,
-      minimum height = 1.2cm
+      minimum height = 1.2cm,
+      inner sep = 0pt
+    },
+    im-inv/.style = {
+      im,
+      draw = white,
+      fill = black
     },
     every label/.style = {
       anchor = base,
@@ -60,37 +67,45 @@ tightpage
     }
     ]
     % Column labels.
-    \node (scale-c) {\ul{Cellular scale}};
-    \node (scale-t) [right = 1.2 of scale-c] {\ul{Tissue scale}};
+    \node (scale-c) {Cellular scale};
+    \node (scale-t) [right = 1.2 of scale-c] {Tissue scale};
     % Virtual granuloma raw images and tissue-scale aggregation.
     \node (im-c-ch-1) [im,
     anchor = north east, at = (scale-c.south), xshift = -2pt, yshift = -1.9em,
-    label = {[name = lbl-m]M$\upphi$}] {};
+    label = {[name = lbl-m]M$\upphi$}] {%
+      \includegraphics[width=1.2cm]{exp988_time22176_01_mac.png}};
     \node (im-c-ch-2) [im, right = 0 of im-c-ch-1, xshift = 4pt,
-    label = T$_{\mathrm{cyt}}$] {};
+    label = T$_{\mathrm{cyt}}$] {%
+      \includegraphics[width=1.2cm]{exp988_time22176_03_t_cyt.png}};
     \node (im-c-ch-3) [im, below = 0 of im-c-ch-1, yshift = -1.9em,
-    label = T$_{\mathrm{reg}}$] {};
+    label = T$_{\mathrm{reg}}$] {%
+      \includegraphics[width=1.2cm]{exp988_time22176_04_t_reg.png}};
     \node (im-c-ch-4) [im, below = 0 of im-c-ch-2, yshift = -1.9em,
-    label = T$_{\mathrm{gam}}$] {};
+    label = T$_{\mathrm{gam}}$] {%
+      \includegraphics[width=1.2cm]{exp988_time22176_02_t_gam.png}};
     \node (im-t-ch-1) [im, anchor = north east, at = (scale-t.south),
-    xshift = -2pt, yshift = -1.9em, label = IFN-$\upgamma$] {};
+    xshift = -2pt, yshift = -1.9em, label = IFN-$\upgamma$] {%
+      \includegraphics[width=1.2cm]{exp988_time22176_07_ifng.png}};
     \node (im-t-ch-2) [im, right = 0 of im-t-ch-1, xshift = 4pt,
-    label = TNF] {};
+    label = TNF] {%
+      \includegraphics[width=1.2cm]{exp988_time22176_08_tnf.png}};
     \node (im-t-ch-3) [im, below = 0 of im-t-ch-1, yshift = -1.9em,
-    label = {[name = lbl-gran]\textit{Gran.}}] {};
-    \node (im-t-ch-4-1) [im, right = 0 of im-t-ch-3, xshift = 4pt,
+    label = {[name = lbl-gran]\textit{Gran.}}] {%
+      \includegraphics[width=1.1cm]{exp988_time22176_11_gran.png}};
+    \node (im-t-ch-4-1) [im-inv, right = 0 of im-t-ch-3, xshift = 4pt,
     label = \textit{Agg.}] {};
-    \node (im-t-ch-4-2) [im, at = (im-t-ch-4-1),
+    \node (im-t-ch-4-2) [im-inv, at = (im-t-ch-4-1),
     xshift = 2pt, yshift = -2pt] {};
-    \node (im-t-ch-4-3) [im, at = (im-t-ch-4-2),
+    \node (im-t-ch-4-3) [im-inv, at = (im-t-ch-4-2),
     xshift = 2pt, yshift = -2pt] {};
-    \node (im-t-ch-4-4) [im, at = (im-t-ch-4-3),
+    \node (im-t-ch-4-4) [im-inv, at = (im-t-ch-4-3),
     xshift = 2pt, yshift = -2pt] {};
-    \node (im-t-ch-4-5) [im, at = (im-t-ch-4-4),
-    xshift = 2pt, yshift = -2pt] {};
+    \node (im-t-ch-4-5) [im-inv, at = (im-t-ch-4-4),
+    xshift = 2pt, yshift = -2pt] {%
+      \includegraphics[width=1.1cm]{exp988_time22176_10_ts.png}};
     % Measurements.
     \node (me-c) [at = ($ (im-c-ch-3.south) !.5! (im-c-ch-4.south) $),
-    anchor = north, yshift = -2em] {pairwise, etc.};
+    anchor = north, yshift = -2em] {neighbors, etc.};
     \matrix (ma-c) at (me-c.south) [table, striped col/.list = {1, ..., 4},
     column 1/.style = {nodes = {fill = none, text width = 2em}},
     text width = 1.5em] {
