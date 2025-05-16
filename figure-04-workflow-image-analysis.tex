@@ -61,7 +61,7 @@ tightpage
     ]
     % Column labels.
     \node (scale-c) {\ul{Cellular scale}};
-    \node (scale-t) [right = of scale-c] {\ul{Tissue scale}};
+    \node (scale-t) [right = 1.2 of scale-c] {\ul{Tissue scale}};
     % Virtual granuloma raw images and tissue-scale aggregation.
     \node (im-c-ch-1) [im,
     anchor = north east, at = (scale-c.south), xshift = -2pt, yshift = -1.9em,
@@ -144,9 +144,9 @@ tightpage
       below:2,240 spatial features}] {};
     % Arrows.
     \path (fit-im) -- (im-t-ch-3.north west)
-    [arr, -{Stealth[fill = black, length = 10pt, width = 15pt, sep = 1pt]}];
-    \node [draw, dotted, fit = (fit-im) (lbl-m), inner sep = 0.2pt] {};
-    \node [draw, dotted, fit = (lbl-gran) (im-t-ch-3) (im-t-ch-4-5),
+    [arr, -{Stealth[fill = black, length = 10pt, width = 15pt, sep = 4pt]}];
+    \node [draw, dashed, fit = (fit-im) (lbl-m), inner sep = 0.2pt] {};
+    \node [draw, dashed, fit = (lbl-gran) (im-t-ch-3) (im-t-ch-4-5),
     inner sep = 1pt] {};
     \path ([yshift = 1mm] me-c.north) -- (me-c.north) [arr];
     \path ([yshift = 1mm] me-t.north) -- (me-t.north) [arr];
