@@ -11,6 +11,7 @@ tightpage
   calc,
   decorations.pathreplacing,    % decoration = brace
   fit,
+  matrix,                       % matrix of nodes
   positioning,
   shapes.geometric              % dart
 }
@@ -20,11 +21,12 @@ tightpage
 \begin{document}
 \begin{preview}
   \begin{tikzpicture}[
+    font = \sffamily,
     im/.style = {
       draw,
       fill = white,
-      minimum width = 0.8cm,
-      minimum height = 0.8cm
+      minimum width = 1.2cm,
+      minimum height = 1.2cm
     },
     every label/.style = {
       anchor = base,
@@ -34,6 +36,27 @@ tightpage
       draw,
       white,
       -{Stealth[fill = black, length = 10pt, width = 15pt]}
+    },
+    table/.style = {
+      anchor = north,
+      matrix of nodes,
+      nodes in empty cells,
+      nodes = {
+        align = center,
+        anchor = center,
+        inner sep = 1pt,
+      },
+      minimum height = 0.9em
+    },
+    striped col/.style = {
+      column #1/.append style = {
+        every even row/.style = {
+          nodes = {
+            fill = black!10,
+            draw = white
+          }
+        }
+      }
     }
     ]
     % Column labels.
@@ -54,9 +77,9 @@ tightpage
     \node (im-t-ch-2) [im, right = 0 of im-t-ch-1, xshift = 4pt,
     label = TNF] {};
     \node (im-t-ch-3) [im, below = 0 of im-t-ch-1, yshift = -1.9em,
-    label = {[name = lbl-gran]\textit{Gran}}] {};
+    label = {[name = lbl-gran]\textit{Gran.}}] {};
     \node (im-t-ch-4-1) [im, right = 0 of im-t-ch-3, xshift = 4pt,
-    label = \textit{Agg}] {};
+    label = \textit{Agg.}] {};
     \node (im-t-ch-4-2) [im, at = (im-t-ch-4-1),
     xshift = 2pt, yshift = -2pt] {};
     \node (im-t-ch-4-3) [im, at = (im-t-ch-4-2),
@@ -67,47 +90,68 @@ tightpage
     xshift = 2pt, yshift = -2pt] {};
     % Measurements.
     \node (me-c) [at = ($ (im-c-ch-3.south) !.5! (im-c-ch-4.south) $),
-    anchor = north, yshift = -2em, text width = {width("size, shape")}]
-    {pairwise, size, shape};
+    anchor = north, yshift = -2em] {pairwise, etc.};
+    \matrix (ma-c) at (me-c.south) [table, striped col/.list = {1, ..., 4},
+    column 1/.style = {nodes = {fill = none, text width = 2em}},
+    text width = 1.5em] {
+      & $m_1$ & $\ldots$ & $m_c$ \\
+      $cell_1$ &&& \\
+      $\ldots$ &&& \\
+      $cell_n$ &&& \\
+    };
     \node (me-t) [at = ($ (im-t-ch-3.south) !.5! (im-t-ch-4-1.south) $),
-    anchor = north, yshift = -2em, text width = {width("intensity distrib.")}]
-    {\mbox{intensity distrib.}, size, shape};
+    anchor = north, yshift = -2em] {intensity distrib., etc.};
+    \matrix (ma-t) at (me-t.south) [table, striped col/.list = {1, ..., 4},
+    column 1/.style = {nodes = {fill = none, align = right}},
+    text width = 1.8em] {
+      & $m_{c+1}$ & $\ldots$ & $m_n$ \\
+      $s_1$ &&& \\
+    };
     % Table aggregation in R for cellular-scale.
-    \node (ag-c) [at = (me-c.south), anchor = north, yshift = -1.9em,
-    text width = {width("mean, median")}]
+    \node (ag-c) [at = (ma-c.south), anchor = north, yshift = -1.9em,
+    text width = {width("interquartile range")}]
     {\mbox{mean, median}, interquartile range};
+    \matrix (ma-a) at (ag-c.south) [table, striped col/.list = {1, ..., 5},
+    column 1/.style = {nodes = {fill = none, align = right}},
+    text width = 1.5em] {
+      & $\bar{m}_1$ & $\tilde{m}_1$ & $\ddot{m}_1$ & $\ldots$ \\
+      $s_1$ &&&& \\
+    };
     % Row labels.
     \node (fit-im) [fit = (im-c-ch-1) (im-c-ch-2) (im-c-ch-3) (im-c-ch-4)] {};
     \node (lbl-im) [anchor = east, at = (fit-im.west), align = flush right,
-    text width = {width("Input and")}, xshift = -2mm]
-    {Input and \textit{generated} images};
+    text width = {width("generated images")}, xshift = -2mm]
+    {Input images and \textit{generated} images};
     \draw [decorate, decoration = brace]
     ([xshift = -1mm] fit-im.south west) --
     ([xshift = -1mm] fit-im.north west);
     \node (fit-me) [fit = (me-c) (me-t) (me-c -| im-c-ch-1.west)] {};
     \node (lbl-me) [anchor = east, at = (fit-me.west) -| (lbl-im.east),
-    xshift = -2mm] {Measurements};
+    xshift = -2mm, align = flush right, text width = {width("Measurements (m)")}]
+    {Measurements ($m$) per sample ($s$)};
     \draw [decorate, decoration = brace]
     ([xshift = -1mm] fit-me.south west) --
     ([xshift = -1mm] fit-me.north west);
     \node (lbl-ag) [anchor = east, at = (ag-c.west -| fit-me.west),
-    xshift = -2mm] {Summaries};
+    xshift = -2mm, align = flush right, text width = {width("Cellular summaries")}]
+    {Cellular summaries per sample ($s$)};
     \draw [decorate, decoration = brace]
     ([xshift = -1mm] ag-c.south west -| fit-me.west) --
     ([xshift = -1mm] ag-c.north west -| fit-me.west);
     % Final features.
-    \node [fit = (ag-c.south) (scale-c) (scale-t),
+    \node [fit = (ma-a.south) (scale-c) (scale-t),
     label = {[name = lbl-result, anchor = north, yshift = -1em]
       below:2,240 spatial features}] {};
     % Arrows.
     \path (fit-im) -- (im-t-ch-3.north west)
-    [arr, -{Stealth[fill = black, length = 10pt, width = 15pt, sep = 15pt]}];
+    [arr, -{Stealth[fill = black, length = 10pt, width = 15pt, sep = 1pt]}];
     \node [draw, dotted, fit = (fit-im) (lbl-m), inner sep = 0.2pt] {};
-    \node [draw, dotted, fit = (lbl-gran) (im-t-ch-4-5), inner sep = 1pt] {};
-    \path ([yshift = 1cm] me-c.north) -- (me-c.north) [arr];
-    \path ([yshift = 1cm] me-t.north) -- (me-t.north) [arr];
-    \path ([yshift = 1cm] ag-c.north) -- (ag-c.north) [arr];
-    \path ([yshift = 1cm] lbl-result.north) -- (lbl-result.north) [arr];
+    \node [draw, dotted, fit = (lbl-gran) (im-t-ch-3) (im-t-ch-4-5),
+    inner sep = 1pt] {};
+    \path ([yshift = 1mm] me-c.north) -- (me-c.north) [arr];
+    \path ([yshift = 1mm] me-t.north) -- (me-t.north) [arr];
+    \path ([yshift = 1mm] ag-c.north) -- (ag-c.north) [arr];
+    \path ([yshift = 1mm] lbl-result.north) -- (lbl-result.north) [arr];
   \end{tikzpicture}
 \end{preview}
 \end{document}
