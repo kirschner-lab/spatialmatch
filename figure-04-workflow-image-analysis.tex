@@ -120,8 +120,9 @@ tightpage
     % Row labels.
     \node (fit-im) [fit = (im-c-ch-1) (im-c-ch-2) (im-c-ch-3) (im-c-ch-4)] {};
     \node (lbl-im) [anchor = east, at = (fit-im.west), align = flush right,
-    text width = {width("generated images")}, xshift = -2mm]
-    {Input images and \textit{generated} images};
+    text width = {width("and generated images")}, xshift = -2mm]
+    {Raw images (M$\upphi \ldots$TNF)
+      and \textit{generated} images (\textit{Gran., Agg.})};
     \draw [decorate, decoration = brace]
     ([xshift = -1mm] fit-im.south west) --
     ([xshift = -1mm] fit-im.north west);
