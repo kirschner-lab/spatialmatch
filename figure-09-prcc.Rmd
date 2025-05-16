@@ -1,4 +1,4 @@
-# Figure 8
+# Figure 9
 
 ```{r imports}
 #| cache: false
@@ -16,7 +16,7 @@ library(ggrepel) # geom_text_repel
 source("R/config.R")
 ```
 
-```{r figure-08-prcc}
+```{r figure-09-prcc}
 #| cache: true
 #| fig.width: 5.2
 #| fig.height: 6.5

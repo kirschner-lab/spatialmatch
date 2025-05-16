@@ -1,4 +1,4 @@
-# Figure 5
+# Figure 6
 
 ```{r imports}
 #| cache: false
@@ -133,7 +133,7 @@ system.time({
 prj_predict <- proj_predict(prj)
 ```
 
-```{r figure-05-cfu-vs-smoothed-density}
+```{r figure-06-cfu-vs-smoothed-density}
 #| cache: true
 #| dependson: -1
 #| fig.width: 6.5

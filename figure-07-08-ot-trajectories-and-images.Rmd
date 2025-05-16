@@ -1,4 +1,4 @@
-# Figures 6 and 7
+# Figures 7 and 8
 
 ```{r imports}
 #| cache: false
@@ -366,7 +366,7 @@ df_with_ot <-
             by = c("sample", "exp"))
 ```
 
-```{r figure-06-ot-trajectories}
+```{r figure-07-ot-trajectories}
 #| cache: true
 #| dependson: -1
 #| fig.width: 6.5
@@ -639,7 +639,7 @@ df_classif |>
   print(n = Inf)
 ```
 
-```{r figure-07-ot-images}
+```{r figure-08-ot-images}
 #| cache: true
 #| dependson:
 #| - -3
@@ -657,7 +657,7 @@ if (! is.null(getOption("knitr.in.progress"))) {
   ## knitr used to generate the images from the previous block.
   dir_fig_suppl <-
     file.path("_bookdown_files",
-              "figure-06-07-ot-trajectories-and-images_files",
+              "figure-07-08-ot-trajectories-and-images_files",
               "figure-html")
 }
 files_sample <- file.path(dir_fig_suppl, str_c("sample", samples, ".png"))

@@ -6,14 +6,19 @@
 <!-- badges: end -->
 
 - This repository contains RMarkdown documents to reproduce the results figures
-  and supplementary figures for a research publication.  Each figure is
-  self-contained with explicit inputs and library imports by using RMarkdown's
-  knit and merge approach[^fn1].  Note that some of the supplementary figures
-  are created alongside the results figures.
+  for a research publication.  Each figure is self-contained with explicit
+  inputs and library imports by using RMarkdown's knit and merge
+  approach[^fn1].
+  
+- Although beyond the scope of this reproducible code repository, some
+  supplementary figures are created alongside the results figures where
+  convenient.  The workflow overview figures 1 and 4 are also beyond the scope
+  because they do not involve code: figure 1 was created using BioRender.com
+  and figure 4 was created using LaTeX.
 
 - Download the input data from DOI 10.5281/zenodo.15102621[^fn2].
 
-- To recreate the figures code, if necessary edit the `config.R` file in the
+- To recreate the figures code, if necessary, edit the `config.R` file in the
   `R` subdirectory with the path to your downloaded data directory, then run
   these R commands to install the dependencies and then build the RMarkdown
   book:

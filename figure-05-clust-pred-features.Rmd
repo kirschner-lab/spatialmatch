@@ -1,4 +1,4 @@
-# Figure 4
+# Figure 5
 
 ```{r imports}
 #| cache: false
@@ -13,7 +13,7 @@ library(ggalign)    # ggheatmap
 source("R/config.R")
 ```
 
-```{r figure-04-clust-pred-features}
+```{r figure-05-clust-pred-features}
 #| cache: true
 #| fig.width: 9
 #| fig.height: 5.2
