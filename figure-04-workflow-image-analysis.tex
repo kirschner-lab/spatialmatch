@@ -1,5 +1,8 @@
 \documentclass{article}
 
+\usepackage{libertinus}         % Font
+\usepackage{unicode-math}       % Font for math
+\setmathfont[Scale=MatchUppercase]{libertinusmath-regular.otf}
 \usepackage[
 pdftex,
 active,
@@ -24,8 +27,6 @@ tightpage
   \begin{tikzpicture}[
     font = \sffamily,
     im/.style = {
-      draw,
-      fill = white,
       minimum width = 1.2cm,
       minimum height = 1.2cm,
       inner sep = 0pt
@@ -124,7 +125,7 @@ tightpage
     };
     % Table aggregation in R for cellular-scale.
     \node (ag-c) [at = (ma-c.south), anchor = north, yshift = -1.9em,
-    text width = {width("interquartile range")}]
+    text width = {width("interquartile range") + 2pt}]
     {\mbox{mean, median}, interquartile range};
     \matrix (ma-a) at (ag-c.south) [table, striped col/.list = {1, ..., 5},
     column 1/.style = {nodes = {fill = none, align = right}},
@@ -143,13 +144,15 @@ tightpage
     ([xshift = -1mm] fit-im.north west);
     \node (fit-me) [fit = (me-c) (me-t) (me-c -| im-c-ch-1.west)] {};
     \node (lbl-me) [anchor = east, at = (fit-me.west) -| (lbl-im.east),
-    xshift = -2mm, align = flush right, text width = {width("Measurements (m)")}]
+    xshift = -2mm, align = flush right,
+    text width = {width("Measurements (m)") + 2pt}]
     {Measurements ($m$) per sample ($s$)};
     \draw [decorate, decoration = brace]
     ([xshift = -1mm] fit-me.south west) --
     ([xshift = -1mm] fit-me.north west);
     \node (lbl-ag) [anchor = east, at = (ag-c.west -| fit-me.west),
-    xshift = -2mm, align = flush right, text width = {width("Cellular summaries")}]
+    xshift = -2mm, align = flush right,
+    text width = {width("Cellular summaries") + 2pt}]
     {Cellular summaries per sample ($s$)};
     \draw [decorate, decoration = brace]
     ([xshift = -1mm] ag-c.south west -| fit-me.west) --
@@ -171,3 +174,8 @@ tightpage
   \end{tikzpicture}
 \end{preview}
 \end{document}
+
+% Local Variables:
+% TeX-engine: luatex
+% coding: utf-8
+% End:
