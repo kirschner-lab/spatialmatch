@@ -5,7 +5,7 @@ rmd_files:
 - README.md
 - figure-02-mibi-samples.Rmd
 - figure-03-50k-sim.Rmd
-- figure-04-clust-pred-features.Rmd
-- figure-05-cfu-vs-smoothed-density.Rmd
-- figure-06-07-ot-trajectories-and-images.Rmd
-- figure-08-prcc.Rmd
+- figure-05-clust-pred-features.Rmd
+- figure-06-cfu-vs-smoothed-density.Rmd
+- figure-07-08-ot-trajectories-and-images.Rmd
+- figure-09-prcc.Rmd
