@@ -26,12 +26,12 @@ source("R/config.R")
 #| cache: true
 file_stat <-
   file.path(dir_data,
-            "2024-07-19-A-gr-50k",
-            "output-lhs-stat-cols-35.csv.gz")
+            "2026-02-03-A-gr-20k-3rep",
+            "output-lhs-7d-interval-stat-cols-10.csv.zst")
 
 df_runs <-
   ## Read in the data with minimal changes.
-  read_csv(file_stat,
+  read_csv(zstdfile(file_stat),
            col_types = c(exp = "c", time = "i"),
            show_col_types = FALSE) %>%
   ## Convert ticks to days.
@@ -49,13 +49,16 @@ df_std <-
   rename_with(to_snake_case) %>%
   ## Classify by Mtb level.
   group_by(exp) %>%
+  ## Experimentally, we do not see granulomas with more than 1M CFU.
+  filter(! any(tot_mtb_in_gran_scaled_ring > 1e6)) %>%
   mutate(classif =
          case_when(
            tot_mtb_in_gran_scaled_ring[time == max(time)] == 0
            ~ "Sterile",
-           (tot_mtb_in_gran_scaled_ring[time == 154] -
-            tot_mtb_in_gran_scaled_ring[time == 105]) <
-             1.1 * tot_mtb_in_gran_scaled_ring[time == 105] |
+           ((tot_mtb_in_gran_scaled_ring[time == 154] -
+             tot_mtb_in_gran_scaled_ring[time == 105]) <
+              1.1 * tot_mtb_in_gran_scaled_ring[time == 105] &
+              tot_mtb_in_gran_scaled_ring[time == 154] < 1e5) |
            tot_mtb_in_gran_scaled_ring[time == 154] < 1e4
            ~ "Controlling",
            .default = "Uncontrolled"

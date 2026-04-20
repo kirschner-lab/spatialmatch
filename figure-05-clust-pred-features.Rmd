@@ -19,16 +19,16 @@ source("R/config.R")
 #| fig.height: 5.2
 files_rank <-
   file.path(dir_data,
-            "2024-09-03-A-varsel-50k",
-            "output") %>%
-  dir("^rank_week[0-9]{1,2}[.]txt",
+            "2026-02-17-A-cellprofiler-stats",
+            "05-r-varsel-output") %>%
+  dir("^rank_week[0-9]{1,2}[.]csv",
       full.names = TRUE) %>%
   ## Sort file names numerically.
-  .[order(as.numeric(str_extract(., "rank_week(.+)[.]txt", group = 1)))]
+  .[order(as.numeric(str_extract(., "rank_week(.+)[.]csv", group = 1)))]
 files_size <-
   file.path(dir_data,
-            "2024-09-03-A-varsel-50k",
-            "output") %>%
+            "2026-02-17-A-cellprofiler-stats",
+            "05-r-varsel-output") %>%
   dir("^size_week[0-9]{1,2}[.]txt",
       full.names = TRUE) %>%
   ## Sort file names numerically.
@@ -78,7 +78,7 @@ names_map <- c(
     "Granuloma major-axis length",
   "gran_Intensity_StdIntensity_tnf_mean" =
     "TNF standard deviation in granuloma",
-  "mac_Neighbors_NumberOfNeighbors_3_IQR" =
+  "mac_Neighbors_NumberOfNeighbors_60_IQR" =
     "Macrophage number of neighbors",
   "gran_RadialDistribution_RadialCV_tnf_1of4_mean" =
     "Inner granuloma macrophage activation signal",
@@ -88,11 +88,11 @@ names_map <- c(
     "TNF in granuloma",
   "mac_Children_macs_Count_mean" =
     "1 / (Number of macrophages)",
-  "mac_Neighbors_SecondClosestDistance_3_median" =
+  "mac_Neighbors_SecondClosestDistance_60_median" =
     "Distance from macrophage to second-closest cell",
-  "mac_Neighbors_NumberOfNeighbors_3_mean" =
+  "mac_Neighbors_NumberOfNeighbors_60_mean" =
     "Macrophage mean number of neighbors",
-  "mac_Neighbors_NumberOfNeighbors_3_median" =
+  "mac_Neighbors_NumberOfNeighbors_60_median" =
     "Macrophage median number of neighbors",
   "gran_AreaShape_MedianRadius_mean" =
     "Granuloma median radius",
@@ -122,7 +122,7 @@ names_map <- c(
     "Macrophage activation signal distribution along x-axis",
   "ts_Intensity_StdIntensityEdge_tnf_mean" =
     "TNF standard deviation at granuloma edge",
-  "mac_Neighbors_FirstClosestDistance_t_reg_3_median" =
+  "mac_Neighbors_FirstClosestDistance_t_reg_60_median" =
     "Distance from macrophage to closest regulatory T cell",
   "ts_AreaShape_FormFactor_mean" =
     "T cell distribution circularity",
@@ -132,7 +132,7 @@ names_map <- c(
 ## Plot clustered heatmap.
 mat_full <-
   df_varsel %>%
-  ## Remove features that appear for less than 3 weeks.
+  ## Remove features that appear for fewer than 3 weeks.
   inner_join(df_varsel %>%
                count(ranking_fulldata) %>%
                filter(n >= 3) %>%

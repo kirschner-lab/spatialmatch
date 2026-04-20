@@ -6,7 +6,7 @@
 <!-- badges: end -->
 
 - The following describes the computer cluster simulation files and directories
-  in the Zenodo-archived zip file.
+  in v2 of the Zenodo-archived zip file.
 
 - The standard operating procedure of the Kirschner laboratory is to run
   simulations on computer clusters only after first creating a dedicated
@@ -57,142 +57,18 @@
   limited jobs were run on nodes with 256 GB RAM; calculations and
   optimizations to prevent high memory loads from crashing the job are
   contained and documented within the `*.sbatch` job submission scripts.
-  Except for `modelruns/2024-07-19-A-gr-50k`, all model-runs use the Purdue
-  Anvil cluster.  Most jobs are embarrassingly parallel serial CPU jobs run
-  without MPI, or GPUs, or any requirement for special network topology or
+  Except for `modelruns/2026-02-03-A-gr-20k-3rep`, all model-runs use the
+  Purdue Anvil cluster.  Most jobs are embarrassingly parallel serial CPU jobs
+  run without MPI, or GPUs, or any requirement for special network topology or
   high-speed interconnect on large clusters.
 
-  - `modelruns/2024-07-19-A-gr-50k` had the highest CPU need for 50,000
-    simulations and therefore additionally used the UCSD Expanse, the U-M
-    Lighthouse, and the U-M Great Lakes clusters.
-
-  - The workflow in `modelruns/2024-06-27-A-training-data-oneshot` was split
-    into `modelruns/2024-08-19-A-training-data-oneshot-50k` and
-    `modelruns/2024-09-03-A-varsel-50k` due to higher memory requirements when
-    going from 5,000 to 50,000 granulomas.
+  - `modelruns/2026-02-03-A-gr-20k-3rep` had the highest CPU need for 60,000
+    simulations (20,000 samples x 3 replicates) and therefore used the U-M
+    Lighthouse and U-M Great Lakes clusters.
 
 ## Flowcharts of model-run directories
 
-### modelruns/2024-06-14-A-gs-5000
-
-```uniline
-╭─Inputs─────────────────────────────────╮
-│baseline_200_host_param_ranges_grans.xml│
-╰────┰───────────────────────────────────╯
-     ┃
-     ▼
-╭─Command─────────────────────────────────────╮
-│lhs \                                        │
-│  -s 123 \                                   │
-│  -n 5000 \                                  │
-│  -i baseline_200_host_param_ranges_grans.xml│
-╰────┰────────────────────────────────────────╯
-     ┃
-     ▼
-╭─Outputs───────╮
-│{1..5000}.xml *│
-╰───────────────╯
-
-╭─Inputs────────────────────╮
-│gr *                       │
-│lung-model-options-short.sh│
-│{1..5000}.xml *            │
-╰────┰──────────────────────╯
-     ┃
-     ▼
-╭─Command───────────────────────╮
-│lhssubmit-job-array \          │
-│  ./gr 1 5000 1 1 048:00:00 \  │
-│  lung-model-options-short.sh 1│
-╰────┰──────────────────────────╯
-     ┃
-     ▼
-╭─Outputs──────────────╮
-│exp{1..5000}/*/*.csv *│
-╰──────────────────────╯
-
-╭─Inputs─────────────────────────────────╮
-│baseline_200_host_param_ranges_grans.xml│
-│exp{1..5000}/*/*.csv *                  │
-│output_fields.csv                       │
-╰────┰───────────────────────────────────╯
-     ┃
-     ▼
-╭─Command───────────────────────────────────────╮
-│TIME_STEPS_PER_DAY=144 make-lhs-prcc.py \      │
-│  -i baseline_200_host_param_ranges_grans.xml \│
-│  --f output_fields.csv --o output-lhs.csv \   │
-│  --di 7,0,154 --es 1 --ee 5000 --rs 1 --re 1  │
-╰────┰──────────────────────────────────────────╯
-     ┃
-     ▼
-╭─Outputs─────────────────────────────────╮
-│output-lhs-aggregated-stat-cols-35.csv **│
-╰─────────────────────────────────────────╯
-```
-
-### modelruns/2024-06-27-A-training-data-oneshot
-
-```uniline
-╭─Inputs────╮ ╭─Inputs───────╮ ╭─Inputs────────────────╮
-│build.ninja│ │gransim.cpproj│ │caret.def              │
-│gransimg.c │ ╰────┰─────────╯ │caret-install-methods.R│
-╰────┰──────╯      ┃           ╰────┰──────────────────╯
-     ┃             ┃                ┃
-     ▼             ▼                ▼
-╭─Command╮    ╭─Command──────╮ ╭─Command──────────────────────╮
-│ninja * │    │cellprofiler *│ │SINGULARITY_TMPDIR=/var/tmp \ │
-╰────┰───╯    ╰────┰─────────╯ │  sudo singularity build \    │
-     ┃             ┃           │  /var/tmp/caret.sif caret.def│
-     ▼             ▼           ╰────┰─────────────────────────╯
-╭─Outputs──╮  ╭─Outputs──────╮      ┃
-│gransimg *│  │gransim.cppipe│      ▼
-╰──────────╯  ╰──────────────╯ ╭─Outputs───╮
-                               │caret.sif *│
-╭─Inputs───────╮               ╰───────────╯
-│gramsimg *    │
-│gransim.cppipe│
-│caret.sif *   │
-│summarize.R   │
-│parallel *    │
-╰────┰─────────╯
-     ┃
-     ▼
-╭─Command─────────────╮
-│run-cp-oneshot.sbatch│
-╰────┰────────────────╯
-     ┃
-     ▼
-╭─Outputs──────╮
-│joblog        │
-│output/*.csv *│
-╰──────────────╯
-
-╭─Inputs─────────╮
-│output/*/*.csv *│
-│combine-csvs.R  │
-╰────┰───────────╯
-     ┃
-     ▼
-╭─Command──────────────╮
-│Rscript combine-csvs.R│
-╰────┰─────────────────╯
-     ┃
-     ▼
-╭─Outputs─────╮
-│output.csv **│
-╰─────────────╯
-```
-
-Notes for
-"[modelruns/2024-06-27-A-training-data-oneshot](#modelruns2024-06-27-a-training-data-oneshot)":
-
-- `cellprofiler` is the CellProfiler graphical program; to export
-  `gransim.cpproj` to the `gransim.cppipe` file that can run on a cluster, in
-  the graphical interface, click on File > Export > Pipeline... >
-  gransim.cppipe.
-
-### modelruns/2024-07-19-A-gr-50k
+### modelruns/2026-02-03-A-gr-20k-3rep
 
 ```uniline
 ╭─Inputs─────────────────────────────────╮
@@ -230,26 +106,25 @@ Notes for
 │exp{1..50000}/*/*.csv *│
 ╰───────────────────────╯
 
+TODO:
 ╭─Inputs─────────────────────────────────╮
 │baseline_200_host_param_ranges_grans.xml│
+│{1..50000}.xml *                        │
 │exp{1..50000}/*/*.csv *                 │
 │output_fields.csv                       │
 ╰────┰───────────────────────────────────╯
      ┃
      ▼
-╭─Command───────────────────────────────────────╮
-│TIME_STEPS_PER_DAY=144 make-lhs-prcc.py \      │
-│  -i baseline_200_host_param_ranges_grans.xml \│
-│  --f output_fields.csv --o output-lhs.csv \   │
-│  --di 7,0,154 --es 1 --ee 50000 --rs 1 --re 1 │
-│gzip output-lhs-aggregated-stat-cols-35.csv    │
-╰────┰──────────────────────────────────────────╯
+╭─Command───────────────────────────────╮
+│sbatch make-lhs-prcc-7d-interval.sbatch│
+╰────┰──────────────────────────────────╯
      ┃
      ▼
-╭─Outputs────────────────────────────────────╮
-│output-lhs-aggregated-stat-cols-35.csv.gz **│
-╰────────────────────────────────────────────╯
- 
+╭─Outputs──────────────────────────────────────╮
+│output-lhs-7d-interval-stat-cols-10.csv.zst **│
+╰──────────────────────────────────────────────╯
+
+ TODO:
 ╭─Inputs─────────╮
 │merge.ijm **    │
 ╰────┰───────────╯
@@ -268,201 +143,200 @@ Notes for
 ╰────────────────────────╯
 ```
 
-Notes for "[modelruns/2024-07-19-A-gr-50k](#modelruns2024-07-19-a-gr-50k)":
+Notes for "[modelruns/2026-02-03-A-gr-20k-3rep](#modelruns2026-02-03-A-gr-20k-3rep)":
 
 - Run the graphical program FIJI / `ImageJ2` to combine the TIFF files into
   colorized TIFF stacks for visualization.
 
-### modelruns/2024-08-13-A-training-data-oneshot-50k
+### modelruns/2026-02-17-A-cellprofiler-stats
 
 ```uniline
-╭─Inputs────╮ ╭─Inputs───────╮
-│build.ninja│ │gransim.cpproj│
-│gransimg.c │ ╰────┰─────────╯
-╰────┰──────╯      ┃
-     ┃             ┃
-     ▼             ▼
-╭─Command╮    ╭─Command──────╮
-│ninja * │    │cellprofiler *│
-╰────┰───╯    ╰────┰─────────╯
-     ┃             ┃
-     ▼             ▼
-╭─Outputs──╮  ╭─Outputs──────╮
-│gransimg *│  │gransim.cppipe│
-╰──────────╯  ╰──────────────╯
+╭─Inputs───╮
+│spack *   │
+│spack.yaml│
+╰────┰─────╯
+     ┃
+     ▼
+╭─Command──────────────────────╮
+│sbatch 00-spack-install.sbatch│
+╰────┰─────────────────────────╯
+     ┃
+     ▼
+╭─Outputs───────────────────────────╮
+│cellprofiler *                     │
+│clustershell *                     │
+│parallel *                         │
+│meson *                            │
+│ninja *                            │
+│../2026-02-17-B-spack-buildcache/ *│
+╰───────────────────────────────────╯
+
+╭─Inputs╮
+│spack *│
+│meson *│
+│ninja *│
+╰────┰──╯
+     ┃
+     ▼
+╭─Command──────────────────╮
+│./01-gransimg-install.bash│
+╰────┰─────────────────────╯
+     ┃
+     ▼
+╭─Outputs─────────────────╮
+│gransimg-build/gransimg *│
+╰─────────────────────────╯
+
+╭─Inputs───────╮
+│gransim.cpproj│
+╰────┰─────────╯
+     ┃
+     ▼
+╭─Command────────────╮
+│cellprofiler (gui) *│
+╰────┰───────────────╯
+     ┃
+     ▼
+╭─Outputs──────╮
+│gransim.cppipe│
+╰──────────────╯
 
 ╭─Inputs───────────────────────────────────────╮
 │gransimg *                                    │
+│clustershell *                                │
 │cellprofiler *                                │
 │parallel *                                    │
 │../2024-07-19-A-gr-50k/exp{1..50000}/*/seed * │
 │../2024-07-19-A-gr-50k/exp{1..50000}/*/*.csv *│
 │../2024-07-19-A-gr-50k/*.xml *                │
 │gransim.cppipe                                │
+│tar *                                         │
+│zstd *                                        │
 ╰────┰─────────────────────────────────────────╯
      ┃
      ▼
-╭─Command─────────────╮
-│run-cp-oneshot.sbatch│
-╰────┰────────────────╯
+╭─Command─────────────────────╮
+│sbatch 02-cellprofiler.sbatch│
+╰────┰────────────────────────╯
      ┃
      ▼
-╭─Outputs──────────────────────╮
-│joblogs/*.joblog              │
-│output/week{1.22}/*/cp/*.csv *│
-╰──────────────────────────────╯
+╭─Outputs────────────────────────────────────────────────────────────╮
+│02-cellprofiler-joblogs/week{1..22}-rep{1..3}.joblog *              │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/cp/*.csv *           │
+│02-cellprofiler-output/week{1..22}-rep{1..3}-unsummarized.tar.zstd *│
+╰────────────────────────────────────────────────────────────────────╯
 
-╭─Inputs───────────────────────╮
-│tar *                         │
-│zstd *                        │
-│output/week{1.22}/*/cp/*.csv *│
-╰────┰─────────────────────────╯
-     ┃
-     ▼
-╭─Command───────────╮
-│run-compress.sbatch│
-╰────┰──────────────╯
-     ┃
-     ▼
-╭─Outputs─────────╮
-│output.tar.zstd *│
-╰─────────────────╯
-```
-
-Notes for "[modelruns/2024-08-13-A-training-data-oneshot-50k](#modelruns2024-08-19-A-training-data-oneshot-50k)":
-
-- `cellprofiler` is the CellProfiler graphical program; to export
-  `gransim.cpproj` to the `gransim.cppipe` file that can run on a cluster, in
-  the graphical interface, click on File > Export > Pipeline... >
-  gransim.cppipe.
-- cp / cellprofiler is installed into the spack environment.
-
-### modelruns/2024-08-19-A-training-data-reduce-50k
-
-```uniline
 ╭─Inputs────────────────╮
+│Makefile.caret         │
 │caret.def              │
 │caret-install-methods.R│
 ╰────┰──────────────────╯
      ┃
      ▼
-╭─Command─────╮
-│singularity *│
-╰────┰────────╯
+╭─Command────────────────╮
+│make -f Makefile.caret *│
+╰────┰───────────────────╯
      ┃
      ▼
 ╭─Outputs───╮
 │caret.sif *│
 ╰───────────╯
 
-╭─Inputs──────────────────────────────────────────────────────────────────╮
-│caret.sif *                                                              │
-│summarize.R                                                              │
-│../2024-08-13-A-training-data-oneshot-50k/output/week{1..22}/*/cp/*.csv *│
-╰────┰────────────────────────────────────────────────────────────────────╯
+╭─Inputs──────────────────────────────────────────────────╮
+│clustershell *                                           │
+│parallel *                                               │
+│caret.sif *                                              │
+│apptainer *                                              │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/cp/*.csv *│
+│tar *                                                    │
+│zstd *                                                   │
+╰────┰────────────────────────────────────────────────────╯
      ┃
      ▼
-╭─Command──────────────╮
-│run-cp-reduce-2.sbatch│
-╰────┰─────────────────╯
+╭─Command────────────────────╮
+│sbatch 03-r-summarize.sbatch│
+╰────┰───────────────────────╯
      ┃
      ▼
-╭─Outputs──────────────────────╮
-│joblogs/week{1..22}.joblog *  │
-│output/week{1..22}/*/im.csv * │
-│output/week{1..22}/*/obj.csv *│
-╰──────────────────────────────╯
+╭─Outputs──────────────────────────────────────────────────────────╮
+│03-r-summarize-joblogs/week{1..22}-rep{1..3}.joblog *             │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/{im,obj}.csv *     │
+│02-cellprofiler-output/week{1..22}-rep{1..3}-uncombined.tar.zstd *│
+╰──────────────────────────────────────────────────────────────────╯
 
-╭─Inputs───────────────────────╮
-│caret.sif *                   │
-│combine.R                     │
-│output/week{1..22}/*/im.csv * │
-│output/week{1..22}/*/obj.csv *│
-╰────┰─────────────────────────╯
+╭─Inputs──────────────────────────────────────────────────────╮
+│caret.sif *                                                  │
+│apptainer *                                                  │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/{im,obj}.csv *│
+╰────┰────────────────────────────────────────────────────────╯
      ┃
      ▼
-╭─Command─────────────╮
-│run-cp-combine.sbatch│
-╰────┰────────────────╯
+╭─Command──────────────────╮
+│sbatch 04-r-combine.sbatch│
+╰────┰─────────────────────╯
      ┃
      ▼
-╭─Outputs──────────────────────────╮
-│output-combined/week{1..22}.csv **│
-╰──────────────────────────────────╯
-```
+╭─Outputs─────────────────────────────────────────╮
+│02-cellprofiler-output-combined/week{1..22}.csv *│
+╰─────────────────────────────────────────────────╯
 
-Notes for "[modelruns/2024-08-19-A-training-data-reduce-50k](#modelruns2024-08-19-A-training-data-reduce-50k)":
-
-- Building the `caret.sif` Singularity image requires root access for older
-  versions of Singularity; therefore, this typically means running the root
-  command on a machine other than a shared HPC cluster.  Root access is no
-  longer required for the current version, Apptainer (renamed from Singularity
-  by the Linux Foundation), so you could use Apptainer instead of Singularity
-  to simplify building the `caret.sif` Singularity image.
-
-### modelruns/2024-09-03-A-varsel-50k
-
-```uniline
-╭─Inputs───╮
-│Makefile  │
-│varsel.def│
-╰────┰─────╯
+╭─Inputs────────╮
+│Makefile.varsel│
+│varsel.def     │
+╰────┰──────────╯
      ┃
      ▼
-╭─Command─────╮
-│singularity *│
-╰────┰────────╯
+╭─Command─────────────────╮
+│make -f Makefile.varsel *│
+╰────┰────────────────────╯
      ┃
      ▼
 ╭─Outputs────╮
 │varsel.sif *│
 ╰────────────╯
 
-╭─Inputs─────────────────────────────────────────────────────────────────╮
-│varsel.sif *                                                            │
-│varsel.R                                                                │
-│../2024-07-19-A-gr-50k/output-lhs-stat-cols-35.csv.gz                   │
-│../2024-08-19-A-training-data-reduce-50k/output-combined/week{1..22}.csv│
-╰────┰───────────────────────────────────────────────────────────────────╯
-     ┃
-     ▼
-╭─Command─────────╮
-│run-varsel.sbatch│
-╰────┰────────────╯
-     ┃
-     ▼
-╭─Outputs───────────────────────────╮
-│output/refm_obj_week{1..22}.RData *│
-│output/cvvs_week{1..22}.RData *    │
-╰───────────────────────────────────╯
-
-╭─Inputs────────────────────────────╮
-│varsel.sif *                       │
-│fix_cvvs_exports.R                 │
-│output/refm_obj_week{1..22}.RData *│
-│output/cvvs_week{1..22}.RData *    │
-╰────┰──────────────────────────────╯
+╭─Inputs──────────────────────────────────────────╮
+│varsel.sif *                                     │
+│varsel.R                                         │
+│output-lhs-7d-interval-stat-cols-10.csv **       │
+│02-cellprofiler-output-combined/week{1..22}.csv *│
+╰────┰────────────────────────────────────────────╯
      ┃
      ▼
 ╭─Command──────────╮
-│run-exports.sbatch│
+│05-r-varsel.sbatch│
 ╰────┰─────────────╯
      ┃
      ▼
-╭─Outputs──────────────────────╮
-│output/rank_week{1..22}.txt **│
-│output/size_week{1..22}.txt **│
-╰──────────────────────────────╯
+╭─Outputs──────────────────────────────────╮
+│05-r-varsel-output/size_week{1..22}.txt **│
+│05-r-varsel-output/rank_week{1..22}.csv **│
+╰──────────────────────────────────────────╯
 ```
 
-Notes for "[modelruns/2024-09-03-A-varsel-50k](#modelruns2024-09-03-A-varsel-50k)":
+Notes for "[2026-02-17-A-cellprofiler-stats](#modelruns2026-02-17-A-cellprofiler-stats)":
 
-- Building the `varsel.sif` Singularity image requires root access for older
-  versions of Singularity; therefore, this typically means running the root
-  command on a machine other than a shared HPC cluster.  Root access is no
-  longer required for the current version, Apptainer (renamed from Singularity
-  by the Linux Foundation), so you could use Apptainer instead of Singularity
-  to simplify building the `varsel.sif` Singularity image.
+- `cellprofiler` is the CellProfiler graphical program; to export
+  `gransim.cpproj` to the `gransim.cppipe` file that can run on a cluster, in
+  the graphical interface, click on File > Export > Pipeline... >
+  gransim.cppipe.
+- For GranSim CellProfiler is also installed into the spack environment, but
+  for MIBI-TOF, cellprofiler is only run from the graphical program.
+- The `gransim.cpproj` and equivalent `mibi.cpproj` files are archived in the
+  subversion server directory
+  /gr2d/GR-ABM-ODE/simulation/scripts/calibration/mibi/data-raw/
+- The `../2026-02-17-B-spack-buildcache/` directory is an archival cache to
+  redeploy subsequent spack package installations on the same operating system
+  and CPU architecture without rebuilding them.
+- Apptainer and Singularity-CE are the same program; Apptainer was renamed from
+  Singularity by the Linux Foundation.
+- Building the `caret.sif` and `varsel.sif` Singularity images requires root
+  access for older versions of Singularity; therefore, this typically means
+  running the root command on a machine other than a shared HPC cluster.  Root
+  access is no longer required for the current version of Singularity, now
+  called Apptainer, so you could use Apptainer instead of Singularity to
+  simplify building these images but this build variant has not been tested for
+  this research project.
 
 ### modelruns/2024-09-17-A-mibi-data-oneshot
 

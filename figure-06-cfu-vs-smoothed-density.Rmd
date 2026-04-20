@@ -5,12 +5,11 @@
 #| message: false
 library(dplyr)
 library(readr)
+library(stringr)
 library(fs)
 library(projpred)
 library(snakecase)
 library(rstanarm)
-ncores <- parallel::detectCores(logical = FALSE)
-options(mc.cores = ncores)
 library(bayesplot)
 library(ggplot2)
 
@@ -21,37 +20,47 @@ source("R/config.R")
 #| cache: true
 file_stats <-
   file.path(dir_data,
-            "2024-06-14-A-gs-5000",
-            "output-lhs-aggregated-stat-cols-35.csv")
+            "2026-02-03-A-gr-20k-3rep",
+            "output-lhs-7d-interval-stat-cols-10.csv.zst")
 file_features <-
   file.path(dir_data,
-            "2024-06-27-A-training-data-oneshot",
-            "output.csv")
+            "2026-02-17-A-cellprofiler-stats",
+            "02-cellprofiler-output-combined",
+            "week22.csv.zst")
 ## Prepare the df containing both the mtb output and predictors.
 df_stats <-
-  read_csv(file_stats,
-           col_types = c(exp = "c", time = "i"),
-           show_col_types = FALSE)
+  read_csv(zstdfile(file_stats),
+           col_types = c(exp = "c", time = "d", TotMtbInGranScaledRing = "d"),
+           col_select = c(exp, time, TotMtbInGranScaledRing)) %>%
+  filter(time == max(time)) %>%
+  select(-time)
 ys <-
   df_stats %>%
-  filter(time == max(time)) %>%
-  select(-starts_with("GR")) %>%
-  mutate(exp  =
+  mutate(rep =
+           str_split_i(exp, fixed("."), 2L) %>%
+           as.integer(),
+         exp  =
            as.double(exp) %>%
            floor() %>%
-           as.integer()) %>%
+           as.integer(),
+         .after = 1L) %>%
   rename_with(to_snake_case) %>%
   dplyr::rename(Metadata_Site = exp,
-                Metadata_Plate = time)
+                Metadata_Rep = rep)
+## The CSV file has long lines; the default 2^17 buffer is insufficient.
+Sys.setenv(VROOM_CONNECTION_SIZE = 2^19)
 df_features <-
-  read_csv(file_features,
+  read_csv(zstdfile(file_features),
            col_types = c(Metadata_Site = "i",
-                         Metadata_Plate = "i"),
+                         Metadata_Rep = "i"),
+           ## We don't need the time column because we know it's the last
+           ## timepoint.
+           col_select = -c("Metadata_Plate"),
            show_col_types = FALSE)
 df <-
-  inner_join(select(ys, 1:2, "tot_mtb_in_gran_scaled_ring"),
+  inner_join(ys,
              df_features,
-             by = c("Metadata_Site", "Metadata_Plate")) %>%
+             by = c("Metadata_Site", "Metadata_Rep")) %>%
   select(-starts_with("Metadata")) %>%
   dplyr::rename(mtb = tot_mtb_in_gran_scaled_ring) %>%
   mutate(mtb = log1p(mtb) / log(9)) %>%
@@ -76,15 +85,15 @@ system.time({
   refm_fit <- stan_glm(
     mtb ~
       mac_Location_CenterMassIntensity_X_ifng_IQR +
-      mac_Neighbors_NumberOfNeighbors_3_mean +
-      mac_Neighbors_PercentTouching_t_cyt_3_mean +
+      mac_Neighbors_NumberOfNeighbors_60_mean +
+      mac_Neighbors_PercentTouching_t_cyt_60_mean +
       macs_AreaShape_EquivalentDiameter_mean +
       macs_Intensity_MaxIntensity_tnf_mean +
       macs_RadialDistribution_RadialCV_ifng_4of4_mean +
-      t_cyt_Neighbors_PercentTouching_3_mean +
+      t_cyt_Neighbors_PercentTouching_60_mean +
       t_gams_AreaShape_Compactness_mean +
       t_gams_Intensity_StdIntensityEdge_tnf_mean +
-      t_reg_Neighbors_NumberOfNeighbors_3_mean,
+      t_reg_Neighbors_NumberOfNeighbors_60_mean,
     family = gaussian(),
     data = df
   )
@@ -98,20 +107,15 @@ system.time({
   cv_fits <- run_cvfun(refm_obj)
 })
 
-## Run CV in parallel.
-doParallel::registerDoParallel(ncores)
+## Run CV in a single process; parallel processes use too much memory.
 system.time({
   cvvs <- cv_varsel(
     refm_obj,
     cv_method = "kfold",
     cvfits = cv_fits,
-    parallel = TRUE,
     verbose = TRUE
   )
 })
-## Tear down the CV parallelization setup:
-doParallel::stopImplicitCluster()
-foreach::registerDoSEQ()
 
 suggest_size(cvvs, stat = "mlpd")
 

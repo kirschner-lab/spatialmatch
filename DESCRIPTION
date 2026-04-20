@@ -13,14 +13,13 @@ LazyData: true
 Depends:
     R (>= 4.0)
 Suggests:
+    archive,
     bayesplot,
     bookdown,
-    doParallel,
     doRNG,
     dplyr,
     EBImage,
     forcats,
-    foreach,
     fs,
     ggalign,
     ggbrace,

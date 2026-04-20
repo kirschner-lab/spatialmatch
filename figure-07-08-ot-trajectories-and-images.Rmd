@@ -117,9 +117,9 @@ df_pairs
 #| cache: true
 file_elpd <-
   file.path(dir_data,
-            "2024-09-03-A-varsel-50k",
-            "output",
-            "rank_week11.txt")
+            "2026-02-17-A-cellprofiler-stats",
+            "05-r-varsel-output",
+            "rank_week11.csv")
 file_mibi <-
   file.path(dir_data,
             "2024-09-17-A-mibi-data-oneshot",
@@ -127,15 +127,17 @@ file_mibi <-
             "week11.csv")
 file_gs <-
   file.path(dir_data,
-            "2024-08-19-A-training-data-reduce-50k",
-            "output-combined",
-            "week11.csv")
+            "2026-02-17-A-cellprofiler-stats",
+            "02-cellprofiler-output-combined",
+            "week11.csv.zst")
 file_gs_traj <-
   file.path(dir_data,
-            "2024-07-19-A-gr-50k",
-            "output-lhs-stat-cols-35.csv.gz")
+            "2026-02-03-A-gr-20k-3rep",
+            "output-lhs-7d-interval-stat-cols-10.csv.zst")
+## The CSV file has long lines; the default 2^17 buffer is insufficient.
+Sys.setenv(VROOM_CONNECTION_SIZE = 2^19)
 cols_gs_all <-
-  read_csv(file_gs,
+  read_csv(zstdfile(file_gs),
            col_select = -1,
            n_max = 0L,
            show_col_types = FALSE) %>%
@@ -144,7 +146,7 @@ col_id <- cols_gs_all[1]
 cols_gs <- c(
   col_id,
   "t_gam_AreaShape_BoundingBoxMaximum_Y_IQR",
-  "mac_Neighbors_NumberOfNeighbors_3_mean",
+  "mac_Neighbors_NumberOfNeighbors_60_mean",
   "macs_Intensity_StdIntensity_tnf_mean",
   "macs_RadialDistribution_FracAtD_ifng_3of4_mean",
   "ts_Intensity_StdIntensity_tnf_mean",
@@ -155,7 +157,7 @@ cols_gs <- c(
   "t_regs_AreaShape_EquivalentDiameter_mean",
   "macs_Intensity_MaxIntensity_tnf_mean",
   "mac_Children_macs_Count_mean",
-  "mac_Neighbors_FirstClosestDistance_t_reg_3_median",
+  "mac_Neighbors_FirstClosestDistance_t_reg_60_median",
   "gran_Intensity_StdIntensity_tnf_mean"
 )
 # Not all columns will be found in MIBI due to missing TNF, different promxity
@@ -168,13 +170,13 @@ cols_mibi_all <-
   colnames()
 cols <-
   intersect(cols_gs,
-            str_replace(cols_mibi_all, "_60_", "_3_"))
+            cols_mibi_all)
 cols_to_scale <-
   cols[-c(1, 2, 7)]
 
 df_mibi <-
   read_csv(file_mibi,
-           col_select = all_of(str_replace(cols, "_3_", "_60_")),
+           col_select = all_of(cols),
            show_col_types = FALSE) %>%
   ## Linear programming / mixed-integer programming does not handle NAs.
   drop_na() %>%
