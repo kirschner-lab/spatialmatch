@@ -8,6 +8,7 @@ library(stringr)    # str_remove
 library(purrr)      # map_df
 library(readr)      # read_csv
 library(tidyr)      # pivot_wider
+library(FKmL)       # dist.array, mfkml
 library(ggalign)    # ggheatmap
 
 source("R/config.R")
@@ -143,21 +144,79 @@ mat_full <-
               values_from = size) %>%
   tibble::column_to_rownames(var = "ranking_fulldata") %>%
   as.matrix()
-rownames(mat_full) <-
-  names_map[rownames(mat_full)] %>%
-  setNames(NULL)
+## rownames(mat_full) <-
+##   names_map[rownames(mat_full)] %>%
+##   setNames(NULL)
 ## NA values will cause hclust to fail.
 d_mat <- max(mat_full, na.rm = TRUE) + 1L - mat_full
 d_mat[is.na(d_mat)] <- Inf
-d <- dist(d_mat, method = "canberra")
-n_clusters <- 5L
-colors_cluster <-
-  palette.colors(4, palette = "Okabe-Ito")[-1] %>%
-  setNames(c("4", "1", "3"))
-labels_cluster <-
-  c("1" = "Formation",
-    "3" = "Maintenance",
-    "4" = "Transient")
+
+## Cluster longitudinal data using sparse Fréchet distance.
+df_frechet <-
+  df_varsel %>%
+  ## Remove features that appear for fewer than 3 weeks.
+  inner_join(df_varsel %>%
+               count(ranking_fulldata) %>%
+               filter(n >= 3) %>%
+               dplyr::select(-n),
+             by = "ranking_fulldata") %>%
+  ## dist.array needs at least 3 replicates, so expand cv_proportions_diag.
+  group_by(ranking_fulldata, week, size) %>%
+  mutate(cv_proportions_diag = cv_proportions_diag * 5L) %>%
+  uncount(cv_proportions_diag) %>%
+  mutate(rep =
+           row_number() %>%
+           factor(levels = 1:5)) %>%
+  select(-starts_with("elpd")) %>%
+  ungroup() %>%
+  right_join(x = .,
+             y = expand(data = select(., -size), week, ranking_fulldata, rep),
+             by = c("week", "ranking_fulldata", "rep")) %>%
+  replace_na(list(size = 0L)) %>%
+  pivot_wider(id_cols = c(ranking_fulldata, rep),
+              names_from = week,
+              values_from = size,
+              values_fill = 0L) %>%
+  ## dist.array needs specific names of columns.
+  rename(ID = ranking_fulldata) %>%
+  pivot_longer(-c(ID, rep),
+               names_to = "Time",
+               values_to = "Variable1") %>%
+  mutate(Time = as.integer(Time),
+         ## dist.array() assumes at least 2 variables.
+         Variable2 = 0L) %>%
+  arrange(ID, Time, rep) %>%
+  select(-rep) %>%
+  as.data.frame()
+
+system.time({
+  set.seed(123)
+  dist_f <-
+    dist.array(df_frechet,
+               time_scale = 1L,
+               var_scales = c(1L, 1L))
+})
+
+system.time({
+  set.seed(123)
+  clust_f <-
+    mfkml(df_frechet,
+          clt_n = 3L,
+          scales = c(1L, 1L, 1L),
+          weight = 1L)
+})
+
+n_clusters <-
+  clust_f$Cluster$Cluster |>
+  as.integer() |>
+  max()
+## colors_cluster <-
+##   palette.colors(n_clusters + 2, palette = "Okabe-Ito")[-1] %>%
+##   setNames(c("3", "1", "2"))
+## labels_cluster <-
+##   c("1" = "Formation",
+##     "2" = "Maintenance",
+##     "3" = "Transient")
 ggheatmap(mat_full, filling = NULL) +
   ## Outline tiles with black lines and leave small gaps to distinguish
   ## contiguous dark tiles.
@@ -176,11 +235,15 @@ ggheatmap(mat_full, filling = NULL) +
   theme(legend.position = "left",
         legend.text = element_text(vjust = 1)) +
   anno_left(size = unit(5, "char")) +
-  align_dendro(k = n_clusters,
-               distance = d,
+  align_dendro(k = 2,
+               distance =
+                 dist_f[, , 1] |>
+                 `dimnames<-`(list(clust_f$Cluster$ID,
+                                   clust_f$Cluster$ID)) |>
+                 as.dist(),
                aes(color = branch)) +
-  scale_color_manual(values = colors_cluster,
-                     labels = labels_cluster) +
+  ## scale_color_manual(values = colors_cluster,
+  ##                    labels = labels_cluster) +
   geom_point() +
   ## Remove unnecessary labels of align_dendro().
   theme(axis.text.x = element_blank(),

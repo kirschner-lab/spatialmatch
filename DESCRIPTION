@@ -19,6 +19,7 @@ Suggests:
     doRNG,
     dplyr,
     EBImage,
+    FKmL,
     forcats,
     fs,
     ggalign,
