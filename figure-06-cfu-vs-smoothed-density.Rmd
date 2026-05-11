@@ -18,6 +18,7 @@ source("R/config.R")
 
 ```{r prepare-inputs}
 #| cache: true
+#| cache.lazy: FALSE
 file_stats <-
   file.path(dir_data,
             "2026-02-03-A-gr-20k-3rep",
@@ -27,15 +28,23 @@ file_features <-
             "2026-02-17-A-cellprofiler-stats",
             "02-cellprofiler-output-combined",
             "week22.csv.zst")
+file_rank <-
+  file.path(dir_data,
+            "2026-02-17-A-cellprofiler-stats",
+            "05-r-varsel-output",
+            "rank_week22.csv")
 ## Prepare the df containing both the mtb output and predictors.
 df_stats <-
   read_csv(zstdfile(file_stats),
-           col_types = c(exp = "c", time = "d", TotMtbInGranScaledRing = "d"),
+           col_types = c(exp = "c", time = "i", TotMtbInGranScaledRing = "d"),
            col_select = c(exp, time, TotMtbInGranScaledRing)) %>%
   filter(time == max(time)) %>%
   select(-time)
 ys <-
   df_stats %>%
+  group_by(exp) %>%
+  ## Experimentally, we do not see granulomas with more than 1M CFU.
+  filter(! any(TotMtbInGranScaledRing > 1e6)) %>%
   mutate(rep =
            str_split_i(exp, fixed("."), 2L) %>%
            as.integer(),
@@ -47,20 +56,32 @@ ys <-
   rename_with(to_snake_case) %>%
   dplyr::rename(Metadata_Site = exp,
                 Metadata_Rep = rep)
+## Predictive spatial features.
+features <-
+  read_csv(
+    file_rank,
+    col_select = c("size", "ranking_fulldata"),
+    col_types = cols(
+      size = "i",
+      ranking_fulldata = "c")) |>
+  filter(size != 0L) |>
+  pull(ranking_fulldata)
 ## The CSV file has long lines; the default 2^17 buffer is insufficient.
 Sys.setenv(VROOM_CONNECTION_SIZE = 2^19)
-df_features <-
-  read_csv(zstdfile(file_features),
-           col_types = c(Metadata_Site = "i",
-                         Metadata_Rep = "i"),
-           ## We don't need the time column because we know it's the last
-           ## timepoint.
-           col_select = -c("Metadata_Plate"),
-           show_col_types = FALSE)
 df <-
   inner_join(ys,
-             df_features,
+             read_csv(zstdfile(file_features),
+                      ## We don't need the time column because we know it's the
+                      ## last timepoint.
+                      col_types = c(.default = "d",
+                                    Metadata_Site = "i",
+                                    Metadata_Rep = "i"),
+                      col_select = all_of(c(
+                        "Metadata_Site",
+                        "Metadata_Rep",
+                        features))),
              by = c("Metadata_Site", "Metadata_Rep")) %>%
+  ungroup() %>%
   select(-starts_with("Metadata")) %>%
   dplyr::rename(mtb = tot_mtb_in_gran_scaled_ring) %>%
   mutate(mtb = log1p(mtb) / log(9)) %>%
@@ -70,30 +91,18 @@ df <-
   mutate(across(everything(),
                 function(x)
                   replace(x, is.na(x) | x < 0 | is.infinite(x), 0))) %>%
-  ## Remove all columns with the same value.
-  select(where(function(x) ! all(x[1] == x))) %>%
-  ## Get rid of uninformative Zernike columns.
-  select(! contains("zernike")) %>%
-  ## Features within caseum are not helpful.
-  select(! contains("caseum")) %>%
   ## Remove zero-values for now.
   filter(mtb > 0)
 dim(df)
 
-## Top 10 predictors from 27 previously identifed.
+## Top log-CFU predictors from week 22.
+formula_features <-
+  str_c("mtb ~ ", str_c(features, collapse = "+")) |>
+  as.formula()
+formula_features
 system.time({
   refm_fit <- stan_glm(
-    mtb ~
-      mac_Location_CenterMassIntensity_X_ifng_IQR +
-      mac_Neighbors_NumberOfNeighbors_60_mean +
-      mac_Neighbors_PercentTouching_t_cyt_60_mean +
-      macs_AreaShape_EquivalentDiameter_mean +
-      macs_Intensity_MaxIntensity_tnf_mean +
-      macs_RadialDistribution_RadialCV_ifng_4of4_mean +
-      t_cyt_Neighbors_PercentTouching_60_mean +
-      t_gams_AreaShape_Compactness_mean +
-      t_gams_Intensity_StdIntensityEdge_tnf_mean +
-      t_reg_Neighbors_NumberOfNeighbors_60_mean,
+    formula = formula_features,
     family = gaussian(),
     data = df
   )
@@ -131,10 +140,6 @@ system.time({
     verbose = FALSE
   )
 })
-
-## Predicted draws encompassing uncertainty from parameter estimation
-## and sampling.
-prj_predict <- proj_predict(prj)
 ```
 
 ```{r figure-06-cfu-vs-smoothed-density}
@@ -142,7 +147,18 @@ prj_predict <- proj_predict(prj)
 #| dependson: -1
 #| fig.width: 6.5
 #| fig.height: 3
-ppc_dens_overlay(y = df$mtb,
+
+## Predicted draws encompassing uncertainty from parameter estimation
+## and sampling.
+df_sub <-
+  df |>
+  ## Subset to reduce overplotting.
+  mutate(ntile = ntile(mtb, 1000L), .before = 0L) |>
+  group_by(ntile) |>
+  slice_sample() |>
+  ungroup()
+prj_predict <- proj_predict(prj, df_sub)
+ppc_dens_overlay(y = df_sub$mtb,
                  yrep = prj_predict) +
   labs(x = "CFU (counts)",
        y = "Smoothed density",
@@ -159,7 +175,7 @@ ppc_dens_overlay(y = df$mtb,
   }) +
   scale_color_manual(labels = c("Simulated", "Regression predicted"),
                      values = palette.colors(2, palette = "Okabe-Ito")) +
-  geom_rug(data = tibble(value = df$mtb), alpha = 0.08) +
+  geom_rug(data = tibble(value = df_sub$mtb), alpha = 0.08) +
   theme(legend.position = "inside",
         legend.position.inside = c(.2, .9),
         text = element_text(family = "sans")) +

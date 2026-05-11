@@ -134,6 +134,16 @@ file_gs_traj <-
   file.path(dir_data,
             "2026-02-03-A-gr-20k-3rep",
             "output-lhs-7d-interval-stat-cols-10.csv.zst")
+file_rank <-
+  file.path(dir_data,
+            "2026-02-17-A-cellprofiler-stats",
+            "05-r-varsel-output",
+            "rank_week22.csv")
+file_rank_size <-
+  file.path(dir_data,
+            "2026-02-17-A-cellprofiler-stats",
+            "05-r-varsel-output",
+            "size_week22.txt")
 ## The CSV file has long lines; the default 2^17 buffer is insufficient.
 Sys.setenv(VROOM_CONNECTION_SIZE = 2^19)
 cols_gs_all <-
@@ -142,24 +152,18 @@ cols_gs_all <-
            n_max = 0L,
            show_col_types = FALSE) %>%
   colnames()
-col_id <- cols_gs_all[1]
-cols_gs <- c(
-  col_id,
-  "t_gam_AreaShape_BoundingBoxMaximum_Y_IQR",
-  "mac_Neighbors_NumberOfNeighbors_60_mean",
-  "macs_Intensity_StdIntensity_tnf_mean",
-  "macs_RadialDistribution_FracAtD_ifng_3of4_mean",
-  "ts_Intensity_StdIntensity_tnf_mean",
-  "mac_Location_CenterMassIntensity_X_ifng_IQR",
-  "t_gam_Children_t_gams_Count_mean",
-  "mac_Location_CenterMassIntensity_Y_ifng_IQR",
-  "t_cyts_AreaShape_EquivalentDiameter_mean",
-  "t_regs_AreaShape_EquivalentDiameter_mean",
-  "macs_Intensity_MaxIntensity_tnf_mean",
-  "mac_Children_macs_Count_mean",
-  "mac_Neighbors_FirstClosestDistance_t_reg_60_median",
-  "gran_Intensity_StdIntensity_tnf_mean"
-)
+cols_features <-
+  read_csv(
+    file_rank,
+    col_select = c("size", "ranking_fulldata"),
+    col_types = cols(
+      size = "i",
+      ranking_fulldata = "c")) |>
+  filter(size != 0L,
+         size <= as.integer(read_lines(file_rank_size))) |>
+  pull(ranking_fulldata)
+cols_id <- cols_gs_all[1:2]
+cols_gs <- c(cols_id, cols_features)
 # Not all columns will be found in MIBI due to missing TNF, different promxity
 # size (3[x 20um] vs 60[x 1um]), etc.
 cols_mibi_all <-
@@ -171,30 +175,6 @@ cols_mibi_all <-
 cols <-
   intersect(cols_gs,
             cols_mibi_all)
-cols_to_scale <-
-  cols[-c(1, 2, 7)]
-
-df_mibi <-
-  read_csv(file_mibi,
-           col_select = all_of(cols),
-           show_col_types = FALSE) %>%
-  ## Linear programming / mixed-integer programming does not handle NAs.
-  drop_na() %>%
-  arrange(get(col_id)) %>%
-  rename(sample = 1) %>%
-  mutate(sample = fct_inorder(str_c("sample", sample)))
-df_gs <-
-  read_csv(file_gs,
-           col_select = all_of(cols),
-           show_col_types = FALSE) %>%
-  ## Linear programming / mixed-integer programming does not handle NAs.
-  drop_na()  %>%
-  arrange(get(col_id)) %>%
-  rename(exp = 1) %>%
-  mutate(exp = as.integer(exp)) %>%
-  ## Rescale GranSim 20um measurements to MIBI-TOF 1um.
-  mutate(across(all_of(cols_to_scale),
-                function(x) x * 20))
 df_elpd <-
   read_csv(file_elpd,
            col_select = c(col = "ranking_fulldata",
@@ -202,7 +182,34 @@ df_elpd <-
            show_col_types = FALSE) %>%
   filter(col %in% cols) %>%
   mutate(elpd_diff = abs(elpd_diff) / sum(abs(elpd_diff)))
-stopifnot(all(pull(df_elpd, col) == cols[-1]))
+cols_elpd <- pull(df_elpd, col)
+cols_to_scale <-
+  cols_elpd |>
+  str_subset("Angle", negate = TRUE)
+
+df_mibi <-
+  read_csv(file_mibi,
+           col_select = all_of(c(cols_id[1], cols_elpd)),
+           show_col_types = FALSE) %>%
+  ## Linear programming / mixed-integer programming does not handle NAs.
+  drop_na() %>%
+  arrange(pick(all_of(cols_id[1]))) %>%
+  rename(sample = 1) %>%
+  mutate(sample = fct_inorder(str_c("sample", sample)))
+stopifnot(all(cols_elpd == colnames(df_mibi)[-1]))
+df_gs <-
+  read_csv(zstdfile(file_gs),
+           col_select = all_of(c(cols_id, cols_elpd)),
+           show_col_types = FALSE) %>%
+  ## Linear programming / mixed-integer programming does not handle NAs.
+  drop_na()  %>%
+  arrange(pick(all_of(cols_id))) %>%
+  rename(exp = 1, rep = 2) %>%
+  mutate(exp = as.integer(exp), rep = as.integer(rep)) %>%
+  ## Rescale GranSim 20um measurements to MIBI-TOF 1um.
+  mutate(across(all_of(cols_to_scale),
+                function(x) x * 20))
+stopifnot(all(cols_elpd == colnames(df_gs)[-c(1:2)]))
 
 ## Group MIBI-TOF granulomas with simulated GranSim granulomas by log-CFU.
 ##
@@ -211,13 +218,20 @@ stopifnot(all(pull(df_elpd, col) == cols[-1]))
 data(mibi_cells)
 data(meta)
 df_gs_traj_all <-
-  read_csv(file_gs_traj,
+  read_csv(zstdfile(file_gs_traj),
            col_type = "cid",
            col_select = c(exp, time, TotMtbInGranScaledRing)) %>%
-  mutate(exp = as.integer(exp),
-         time = time / ticks_per_day) %>%
-  right_join(select(df_gs, exp),
-             by = "exp")
+  mutate(rep =
+           str_split_i(exp, fixed("."), 2) |>
+           as.integer(),
+         exp =
+           as.double(exp) |>
+           floor() |>
+           as.integer(),
+         time = time / ticks_per_day,
+         .after = "exp") %>%
+  right_join(select(df_gs, exp, rep),
+             by = c("exp", "rep"))
 df_gs_traj <-
   df_gs_traj_all %>%
   filter(time == 11 * 7) %>%
@@ -245,6 +259,7 @@ df_in_range <-
   group_by(sample) %>%
   ## Duplicate all the GranSim experiments for each MIBI sample.
   reframe(exp = pull(df_gs_traj, exp),
+          rep = pull(df_gs_traj, rep),
           TotMtbInGranScaledRing = pull(df_gs_traj, TotMtbInGranScaledRing)) %>%
   ## Filter to +/- bandwidth.
   inner_join(df_mibi_traj %>%
@@ -254,6 +269,16 @@ df_in_range <-
   group_by(sample) %>%
   filter(between(TotMtbInGranScaledRing, lb, ub)) %>%
   ungroup()
+
+## Number of GranSim granulomas without replicates, where at least one
+## replicate is in range.
+df_in_range %>%
+  distinct(sample, exp) %>%
+  count(sample) %>%
+  print(n = Inf)
+
+## Number of GranSim granulomas with replicates, where at least one replicate
+## is in range.
 df_in_range %>%
   count(sample) %>%
   print(n = Inf)
@@ -261,36 +286,36 @@ df_in_range %>%
 ## Pair granulomas before optimal transport only when they have no NAs.
 stopifnot(df_in_range == drop_na(df_in_range))
 
-n_replicates <- 10
-df_pairs_reps <- vector("list", length = n_replicates)
-df_in_range_reps <- df_in_range
-for (i in seq_len(n_replicates)) {
+n_loops <- 10
+df_pairs_loops <- vector("list", length = n_loops)
+df_in_range_loops <- df_in_range
+for (i in seq_len(n_loops)) {
   ## Prepare GranSim feature matrix with dimensions [F, L].
   mat_gs <-
-    select(df_in_range_reps, exp) %>%
+    select(df_in_range_loops, exp, rep) %>%
     left_join(df_gs,
-              by = "exp") %>%
-    select(-exp) %>%
+              by = c("exp", "rep")) %>%
+    select(-exp, -rep) %>%
     as.matrix() %>%
     `dimnames<-`(NULL) %>%
     t()
   ## Prepare MIBI-TOF feature matrix with dimensions [F, L].
   mat_mibi <-
-    select(df_in_range_reps, sample) %>%
+    select(df_in_range_loops, sample) %>%
     left_join(df_mibi,
               by = "sample") %>%
     select(-sample) %>%
     as.matrix() %>%
     `dimnames<-`(NULL) %>%
     t()
-  ## Calculate the cost vector.
+  ## Calculate the cost vector with dimensions [L].
   cost_vec <- c(pull(df_elpd, elpd_diff) %*% abs(mat_gs - mat_mibi))
   ## Run optimal transport.
   ##
   ## Methods equation 2 constraint of each MIBI-TOF granuloma having a single
   ## GranSim granuloma assigned.
-  vec_gs_per_mibi <- count(df_in_range_reps, sample) %>% pull()
-  stopifnot(sum(vec_gs_per_mibi) == nrow(df_in_range_reps))
+  vec_gs_per_mibi <- count(df_in_range_loops, sample) %>% pull()
+  stopifnot(sum(vec_gs_per_mibi) == nrow(df_in_range_loops))
   n_mibi <- length(vec_gs_per_mibi)
   n_combn <- sum(vec_gs_per_mibi)
   constraints_mibi <-
@@ -303,11 +328,11 @@ for (i in seq_len(n_replicates)) {
   ## Methods equation 3 constraint of each GranSim granuloma being assigned to
   ## a MIBI-TOF granuloma no more than once.
   df_gs_dup <-
-    df_in_range_reps %>%
+    df_in_range_loops %>%
     mutate(j = row_number(),
            .before = 1) %>%
-    left_join(count(df_in_range_reps, exp),
-              by = "exp") %>%
+    left_join(count(df_in_range_loops, exp, rep),
+              by = c("exp", "rep")) %>%
     filter(n > 1) %>%
     group_by(exp) %>%
     mutate(i = cur_group_id())
@@ -330,42 +355,42 @@ for (i in seq_len(n_replicates)) {
   stopifnot(ot$status == 0L)
   ot_soln <- ot$solution
   stopifnot(sum(ot_soln) == n_mibi)
-  df_pairs_reps[[i]] <-
-    df_in_range_reps %>%
+  df_pairs_loops[[i]] <-
+    df_in_range_loops %>%
     filter(as.logical(ot_soln))
   ## All MIBI-TOF samples must be present.
-  stopifnot(select(df_pairs_reps[[i]], sample) ==
-              distinct(df_in_range_reps, sample))
+  stopifnot(select(df_pairs_loops[[i]], sample) ==
+              distinct(df_in_range_loops, sample))
   ## No GranSim exp should be repeated.
-  stopifnot(pull(df_pairs_reps[[i]], exp) ==
-              unique(pull(df_pairs_reps[[i]], exp)))
+  stopifnot(pull(df_pairs_loops[[i]], exp) ==
+              unique(pull(df_pairs_loops[[i]], exp)))
   ## Remove the matches from the simulations for the next OT iteration.
-  exps_to_remove <- pull(df_pairs_reps[[i]], exp)
+  exps_to_remove <- pull(df_pairs_loops[[i]], exp)
   n_exp <- function(df) nrow(distinct(df, exp))
-  n_exp_before <- n_exp(df_in_range_reps)
-  df_in_range_reps <-
-    df_in_range_reps %>%
+  n_exp_before <- n_exp(df_in_range_loops)
+  df_in_range_loops <-
+    df_in_range_loops %>%
     filter(! exp %in% exps_to_remove)
   # Number of removed GranSim exp must be the same number as mibi.
-  stopifnot(n_exp(df_in_range_reps) == n_exp_before - length(exps_to_remove))
+  stopifnot(n_exp(df_in_range_loops) == n_exp_before - length(exps_to_remove))
   stopifnot(length(exps_to_remove) == n_mibi)
 }
 
-df_pairs <- bind_rows(df_pairs_reps, .id = "rep")
+df_pairs <- bind_rows(df_pairs_loops, .id = "loop")
 ## All MIBI-TOF samples must be present.
 stopifnot(distinct(df_pairs, sample) == distinct(df_in_range, sample))
 ## No GranSim exp should be repeated.
 stopifnot(pull(distinct(df_pairs, exp)) == unique(pull(df_pairs, exp)))
-## Each replicate should have a unique MIBI-TOF sample.
+## Each loop interation should have a unique MIBI-TOF sample.
 stopifnot(all(pull(count(df_pairs, sample, exp)) == 1L))
 
 ## Identify optimal granulomas among alternatives.
 df_with_ot <-
   df_in_range %>%
-  select(sample, exp) %>%
+  select(sample, exp, rep) %>%
   left_join(df_pairs %>%
-              select(rep, sample, exp),
-            by = c("sample", "exp"))
+              select(loop, sample, exp, rep),
+            by = c("sample", "exp", "rep"))
 ```
 
 ```{r figure-07-ot-trajectories}
@@ -381,21 +406,21 @@ n_colors <- 6L
 colors <- palette.colors(n_colors + 1L, palette = "Okabe-Ito")[-1]
 df_with_ot %>%
   inner_join(df_gs_traj_all,
-             by = "exp",
+             by = c("exp", "rep"),
              relationship = "many-to-many") %>%
-  mutate(rep = ifelse(as.integer(rep) > 3L, NA, rep)) %>%
+  mutate(loop = ifelse(as.integer(loop) > 3L, NA, loop)) %>%
   rename(cfu = TotMtbInGranScaledRing) %>%
   mutate(log_cfu = log1p(cfu) / log1p(9),
          time = time / 7L,
          sample = fct_relabel(sample, relabel)) %>%
-  group_by(sample, exp) %>%
+  group_by(sample, exp, rep) %>%
   mutate(color_id =
            (cur_group_id() - 1L) %% n_colors %>%
            as.character() %>%
            fct(),
          .before = time) %>%
   ungroup() %>%
-  ggplot(aes(time, cfu, group = exp, color = color_id)) +
+  ggplot(aes(time, cfu, group = interaction(exp, rep), color = color_id)) +
   theme_bw() +
   theme(legend.direction = "horizontal",
         legend.position = "inside",
@@ -411,8 +436,8 @@ df_with_ot %>%
   geom_line() +
   geom_line(data =
               . %>%
-              filter(! is.na(rep)),
-            aes(linetype = rep,
+              filter(! is.na(loop)),
+            aes(linetype = loop,
                 color = NULL)) +
   geom_point(data =
                df_mibi_traj %>%
@@ -456,7 +481,7 @@ dir_im_mibi <- file.path(dir_data, "2024-07-19-A-gr-50k", "img_stacks_mibi")
 df_im <-
   df_with_ot %>%
   drop_na() %>%
-  arrange(sample, rep)
+  arrange(sample, loop)
 df_im <-
   df_im %>%
   inner_join(distinct(df_im, sample) %>%
@@ -589,17 +614,24 @@ for (i in seq_len(n_groups)) {
 ## Whether GranSim granulomas are uncontrolled or controlling CFU.
 df_classif <-
   df_pairs |>
-  filter(as.integer(rep) <= 3) |>
-  select(sample, exp, rep) |>
-  arrange(sample, rep) |>
-  inner_join(read_csv(file_gs_traj,
+  filter(as.integer(loop) <= 3) |>
+  select(sample, exp, rep, loop) |>
+  arrange(sample, loop) |>
+  inner_join(read_csv(zstdfile(file_gs_traj),
                       col_type = "cid",
                       col_select = c(exp, time, TotMtbInGranScaledRing)) |>
-               mutate(exp = as.integer(exp),
-                      time = time / ticks_per_day),
-             by = c("exp")) |>
+               mutate(rep =
+                        str_split_i(exp, fixed("."), 2) |>
+                        as.integer(),
+                      exp =
+                        as.double(exp) |>
+                        floor() |>
+                        as.integer(),
+                      time = time / ticks_per_day,
+                      .after = "exp"),
+             by = c("exp", "rep")) |>
   ## Classify by Mtb level.
-  group_by(sample, exp, rep) |>
+  group_by(sample, exp, rep, loop) |>
   reframe(classif =
             case_when(
               TotMtbInGranScaledRing[time == max(time)] == 0 ~ "Sterile",
@@ -611,7 +643,7 @@ df_classif <-
               .default = "Uncontrolled"
             ) |>
             fct(levels = c("Uncontrolled", "Sterile", "Controlling"))) |>
-  arrange(sample, rep) |>
+  arrange(sample, loop) |>
   group_by(sample) |>
   mutate(agree =
            case_when(
@@ -627,9 +659,9 @@ df_classif <-
 ## Tabulate outcome agreement.
 df_classif |>
   mutate(sample = str_remove(sample, "^sample"),
-         rep = str_c("rank", rep)) |>
+         loop = str_c("rank", loop)) |>
   pivot_wider(id_cols = c(sample, agree),
-              names_from = rep,
+              names_from = loop,
               values_from = classif) |>
   print(n = Inf)
 
@@ -642,6 +674,7 @@ df_classif |>
 ```
 
 ```{r figure-08-ot-images}
+#| eval: false
 #| cache: true
 #| dependson:
 #| - -3
@@ -736,12 +769,12 @@ image_read(files_sample) |>
 
 ## Unbalanced optimal transport plot for Figure 1.
 df_pairs |>
-  filter(rep == 1L) |>
+  filter(loop == 1L) |>
   arrange(lb) |>
   mutate(sample =
            fct_inorder(sample) |>
            fct_rev()) |>
-  select(-rep, -exp) |>
+  select(-loop, -exp, -rep) |>
   rename(cfu_from = gran_cfu,
          cfu_to = 2,
          range_from = lb,

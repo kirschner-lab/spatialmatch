@@ -78,18 +78,37 @@ names_map <- c(
     "Granuloma major-axis length",
   "gran_Intensity_StdIntensity_tnf_mean" =
     "TNF standard deviation in granuloma",
+  "mac_Intensity_IntegratedIntensityEdge_ifng_mean" =
+    "Macrophage activation signal",
+  "mac_Intensity_IntegratedIntensityEdge_tnf_mean" =
+    "TNF (edge) proximal to macrophages",
+  "mac_Neighbors_AngleBetweenNeighbors_60_mean" =
+    "Angle between neighboring macrophages",
   "mac_Neighbors_NumberOfNeighbors_60_IQR" =
     "Macrophage number of neighbors",
+  "mac_Neighbors_SecondClosestDistance_60_mean" =
+    "Distance (mean) from macrophage to second-closest cell",
   "gran_RadialDistribution_RadialCV_tnf_1of4_mean" =
     "Inner granuloma macrophage activation signal",
+  ## https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.moments_central
+  "macs_AreaShape_CentralMoment_2_0_mean" =
+    "Macrophage aggregate shape variance",
+  "macs_AreaShape_MeanRadius_mean" =
+    "Macrophage aggregate radius",
+  "macs_AreaShape_Perimeter_mean" =
+    "Macrophage aggregate perimeter",
+  "macs_RadialDistribution_RadialCV_tnf_2of4_mean" =
+    "Inner-middle granuloma macrophage activation signal variance",
+  "macs_RadialDistribution_RadialCV_tnf_3of4_mean" =
+    "Outer-middle granuloma macrophage activation signal variance",
   "macs_Intensity_MaxIntensity_tnf_mean" =
-    "TNF proximal to macrophages",
+    "TNF (maximum) proximal to macrophages",
   "gran_Intensity_MeanIntensity_tnf_mean" =
     "TNF in granuloma",
   "mac_Children_macs_Count_mean" =
     "1 / (Number of macrophages)",
   "mac_Neighbors_SecondClosestDistance_60_median" =
-    "Distance from macrophage to second-closest cell",
+    "Distance (median) from macrophage to second-closest cell",
   "mac_Neighbors_NumberOfNeighbors_60_mean" =
     "Macrophage mean number of neighbors",
   "mac_Neighbors_NumberOfNeighbors_60_median" =
@@ -104,6 +123,8 @@ names_map <- c(
     "T cells activating macrophages x-distribution",
   "t_gam_Location_CenterMassIntensity_Y_tnf_IQR" =
     "T cells activating macrophages y-distribution",
+  "t_gam_Intensity_IntegratedIntensityEdge_tnf_mean" =
+    "TNF proximal to T cells activating macrophages",
   "ts_Intensity_StdIntensity_tnf_mean" =
     "TNF proximal to T cells",
   "macs_Intensity_StdIntensity_tnf_mean" =
@@ -124,18 +145,40 @@ names_map <- c(
     "TNF standard deviation at granuloma edge",
   "mac_Neighbors_FirstClosestDistance_t_reg_60_median" =
     "Distance from macrophage to closest regulatory T cell",
+  "ts_AreaShape_EquivalentDiameter_mean" =
+    "All T cells aggregate equivalent diameter",
+  ## https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_euler_number.html
+  "ts_AreaShape_EulerNumber_mean" =
+    "All T cells aggregate lymphcytic cuff",
   "ts_AreaShape_FormFactor_mean" =
-    "T cell distribution circularity",
+    "All T cells aggregate circularity",
+  "ts_AreaShape_MeanRadius_mean" =
+    "All T cells aggregate mean radius",
   "t_gam_Children_t_gams_Count_mean" =
-    "1 / (Number of T cells activating macrophages)"
+    "1 / (Number of T cells activating macrophages)",
+  "t_gams_AreaShape_MinorAxisLength_mean" =
+    "T cells activating macrophages aggregate minor-axis length"
 )
 ## Plot clustered heatmap.
 mat_full <-
   df_varsel %>%
-  ## Remove features that appear for fewer than 3 weeks.
+  ## Remove features that appear for fewer than 3 contiguous weeks.
   inner_join(df_varsel %>%
-               count(ranking_fulldata) %>%
-               filter(n >= 3) %>%
+               pivot_wider(
+                 id_cols = ranking_fulldata,
+                 names_from = week,
+                 values_from = size,
+                 values_fill = 0L) %>%
+               nest(n = -ranking_fulldata) %>%
+               rowwise() %>%
+               mutate(n = (function(x) {
+                 rle <-
+                   unlist(x) |>
+                   (function(x) x > 0L)() |>
+                   rle()
+                 max(rle$lengths[rle$values])
+               })(n)) %>%
+               filter(n >= 4) %>%
                select(-n),
              by = "ranking_fulldata") %>%
   pivot_wider(id_cols = ranking_fulldata,
@@ -150,14 +193,16 @@ rownames(mat_full) <-
 d_mat <- max(mat_full, na.rm = TRUE) + 1L - mat_full
 d_mat[is.na(d_mat)] <- Inf
 d <- dist(d_mat, method = "canberra")
-n_clusters <- 5L
+n_clusters <- 3L
 colors_cluster <-
   palette.colors(4, palette = "Okabe-Ito")[-1] %>%
-  setNames(c("4", "1", "3"))
+  setNames(c("Transient", "Formation", "Maintenance"))
 labels_cluster <-
-  c("1" = "Formation",
-    "3" = "Maintenance",
-    "4" = "Transient")
+    c("Formation",
+      "Transient",
+      "Maintenance",
+      "Formation") %>%
+  factor(levels = c("Formation", "Transient", "Maintenance"))
 ggheatmap(mat_full, filling = NULL) +
   ## Outline tiles with black lines and leave small gaps to distinguish
   ## contiguous dark tiles.
@@ -178,9 +223,8 @@ ggheatmap(mat_full, filling = NULL) +
   anno_left(size = unit(5, "char")) +
   align_dendro(k = n_clusters,
                distance = d,
-               aes(color = branch)) +
-  scale_color_manual(values = colors_cluster,
-                     labels = labels_cluster) +
+               aes(color = labels_cluster[branch])) +
+  scale_color_manual(values = colors_cluster) +
   geom_point() +
   ## Remove unnecessary labels of align_dendro().
   theme(axis.text.x = element_blank(),
@@ -188,7 +232,7 @@ ggheatmap(mat_full, filling = NULL) +
         legend.position = "left") +
   labs(x = NULL,
        color = "Cluster") +
-  guides(color = guide_legend(reverse = TRUE))
+  guides(color = guide_legend())
 ```
 	
 ```{r session-info}
