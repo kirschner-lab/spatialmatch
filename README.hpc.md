@@ -91,26 +91,25 @@
 ╭─Inputs─────────────────────────────────╮
 │gr *                                    │
 │lung-model-options-short.sh             │
-│{1..50000}.xml *                        │
+│{1..20000}.xml *                        │
 ╰────┰───────────────────────────────────╯
      ┃
      ▼
 ╭─Command───────────────────────╮
 │lhssubmit-job-array \          │
-│  ./gr 1 50000 1 1 096:00:00 \ │
+│  ./gr 1 20000 1 3 096:00:00 \ │
 │  lung-model-options-short.sh 1│
 ╰────┰──────────────────────────╯
      ┃
      ▼
 ╭─Outputs───────────────╮
-│exp{1..50000}/*/*.csv *│
+│exp{1..20000}/*/*.csv *│
 ╰───────────────────────╯
 
-TODO:
 ╭─Inputs─────────────────────────────────╮
 │baseline_200_host_param_ranges_grans.xml│
-│{1..50000}.xml *                        │
-│exp{1..50000}/*/*.csv *                 │
+│{1..20000}.xml *                        │
+│exp{1..20000}/*/*.csv *                 │
 │output_fields.csv                       │
 ╰────┰───────────────────────────────────╯
      ┃
@@ -201,18 +200,18 @@ Notes for "[modelruns/2026-02-03-A-gr-20k-3rep](#modelruns2026-02-03-A-gr-20k-3r
 │gransim.cppipe│
 ╰──────────────╯
 
-╭─Inputs───────────────────────────────────────╮
-│gransimg *                                    │
-│clustershell *                                │
-│cellprofiler *                                │
-│parallel *                                    │
-│../2024-07-19-A-gr-50k/exp{1..50000}/*/seed * │
-│../2024-07-19-A-gr-50k/exp{1..50000}/*/*.csv *│
-│../2024-07-19-A-gr-50k/*.xml *                │
-│gransim.cppipe                                │
-│tar *                                         │
-│zstd *                                        │
-╰────┰─────────────────────────────────────────╯
+╭─Inputs────────────────────────────────────────────╮
+│gransimg *                                         │
+│clustershell *                                     │
+│cellprofiler *                                     │
+│parallel *                                         │
+│../2026-02-03-A-gr-20k-3rep/exp{1..20000}/*/seed * │
+│../2026-02-03-A-gr-20k-3rep/exp{1..20000}/*/*.csv *│
+│../2026-02-03-A-gr-20k-3rep/*.xml *                │
+│gransim.cppipe                                     │
+│tar *                                              │
+│zstd *                                             │
+╰────┰──────────────────────────────────────────────╯
      ┃
      ▼
 ╭─Command─────────────────────╮
@@ -312,6 +311,43 @@ Notes for "[modelruns/2026-02-03-A-gr-20k-3rep](#modelruns2026-02-03-A-gr-20k-3r
 │05-r-varsel-output/size_week{1..22}.txt **│
 │05-r-varsel-output/rank_week{1..22}.csv **│
 ╰──────────────────────────────────────────╯
+
+╭─Inputs───────────────────────────────────────────────────────────────────╮
+│../2024-09-17-A-mibi-data-oneshot/output-combined/week11.csv **           │
+│../2026-02-03-A-gr-20k-3rep/output-lhs-7d-interval-stat-cols-10.csv.zst **│
+│02-cellprofiler-output-combined/week11.csv.zst **                         │
+│05-r-varsel-output/size_week22.txt **                                     │
+│05-r-varsel-output/rank_week{11,22}.csv **                                │
+╰────┰─────────────────────────────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command──────────────────────────────────────╮
+│figure-07-08-ot-trajectories-and-images.Rmd **│
+╰────┰─────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Outputs─────╮
+│ot.runlist **│
+╰─────────────╯
+
+╭─Inputs─────────────────────────────────────────────────────────────╮
+│../2026-02-03-A-gr-20k-3rep/output_fields.csv *                     │
+│../2026-02-03-A-gr-20k-3rep/output-lhs-7d-interval-stat-cols-*.csv *│
+│ot.runlist **                                                       │
+│varsel.sif *                                                        │
+│matlab *                                                            │
+│lhsPrccFromCsv.m *                                                  │
+╰────┰───────────────────────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command─────────╮
+│06-ot-prcc.sbatch│
+╰────┰────────────╯
+     ┃
+     ▼
+╭─Outputs───────────╮
+│06-prcc_ot_9.mat **│
+╰───────────────────╯
 ```
 
 Notes for "[2026-02-17-A-cellprofiler-stats](#modelruns2026-02-17-A-cellprofiler-stats)":
@@ -337,81 +373,6 @@ Notes for "[2026-02-17-A-cellprofiler-stats](#modelruns2026-02-17-A-cellprofiler
   called Apptainer, so you could use Apptainer instead of Singularity to
   simplify building these images but this build variant has not been tested for
   this research project.
-
-### modelruns/2024-09-17-A-mibi-data-oneshot
-
-```uniline
-╭─Inputs────╮
-│mibi.cpproj│
-╰────┰──────╯
-     ┃
-     ▼
-╭─Command──────╮
-│cellprofiler *│
-╰────┰─────────╯
-     ┃
-     ▼
-╭─Outputs──╮
-│cp/*.csv *│
-╰──────────╯
-
-╭─Inputs────╮
-│summarize.R│
-│cp/*.csv * │
-╰────┰──────╯
-     ┃
-     ▼
-╭─Command───────────────────────╮
-│Rscript summarize.R cp/ output/│
-╰────┰──────────────────────────╯
-     ┃
-     ▼
-╭─Outputs─────────────────╮
-│output/week11/0/im.csv * │
-│output/week11/0/obj.csv *│
-╰─────────────────────────╯
-
-╭─Inputs──────────────────╮
-│combine.R                │
-│output/week11/0/im.csv * │
-│output/week11/0/obj.csv *│
-╰────┰────────────────────╯
-     ┃
-     ▼
-╭─Command─────────╮
-│Rscript combine.R│
-╰────┰────────────╯
-     ┃
-     ▼
-╭─Outputs─────────────────────╮
-│output-combined/week11.csv **│
-╰─────────────────────────────╯
-```
-
-### modelruns/2024-12-25-A-ot-prcc-50k
-
-```uniline
-╭─Inputs────────────────────────────────────────────────────────╮
-│make-lhs-prcc.py *                                             │
-│../2024-07-19-A-gr-50k/baseline_200_host_param_ranges_grans.xml│
-│../2024-07-19-A-gr-50k/exp*/*/*.csv *                          │
-│output_fields.csv                                              │
-│runlist                                                        │
-│R *                                                            │
-│matlab *                                                       │
-│lhsPrccFromCsv.m *                                             │
-╰────┰──────────────────────────────────────────────────────────╯
-     ┃
-     ▼
-╭─Command────────────────╮
-│make-csv-and-prcc.sbatch│
-╰────┰───────────────────╯
-     ┃
-     ▼
-╭─Outputs─────────╮
-│prcc-0.1-9.mat **│
-╰─────────────────╯
-```
 
 ### modelruns/2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k
 
