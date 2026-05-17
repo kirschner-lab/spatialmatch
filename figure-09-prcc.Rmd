@@ -22,8 +22,8 @@ source("R/config.R")
 #| fig.height: 6.5
 file_prcc <-
   file.path(dir_data,
-            "2024-12-25-A-ot-prcc-50k",
-            "prcc_0.1_9.mat")
+            "2026-02-17-A-cellprofiler-stats",
+            "06-prcc_ot_9.mat")
 read_prcc <- function(path) {
   ## Run PRCC for all outcomes.
   h5 <- H5File$new(path, mode = "r")
@@ -94,6 +94,7 @@ df_prcc <-
                               "HalfSat",
                               "nrIntMtb",
                               "threshold",
+                              "@estConsRate",
                               "@kApoptosis$"),
                             collapse = "|"))) %>%
   ## Rename parameters to be more legible.
@@ -101,6 +102,8 @@ df_prcc <-
       ## Rename parameters to be more legible.
       fct(param) %>%
       fct_recode(
+        "IL10 from activated macrophages" =
+            "Core.Mac/@dIL10Act",
         "Macrophage recruitment" =
           "Recruit.Prob.Mac/@maxRecProb",
         "Regulatory T cell recruitment" =
@@ -115,6 +118,8 @@ df_prcc <-
           "Core.Tcell.Tgam/@probTNFProducer",
         "TNF from cytotoxic T cells" =
           "Core.Tcell.Tcyt/@probTNFProducer",
+        "IL10 diffusivity" =
+          "Core/@diffusivityIL10",
         "Caseation from cell death" =
           "Core/@nrKillingsCaseation")) %>%
   ## Convert days to weeks.
