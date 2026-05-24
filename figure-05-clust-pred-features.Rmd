@@ -9,14 +9,15 @@ library(purrr)      # map_df
 library(readr)      # read_csv
 library(tidyr)      # pivot_wider
 library(ggalign)    # ggheatmap
+library(forcats)    # fct, fct_reorder
 
 source("R/config.R")
 ```
 
 ```{r figure-05-clust-pred-features}
 #| cache: true
-#| fig.width: 9
-#| fig.height: 5.2
+#| fig.width: 10
+#| fig.height: 3.6
 files_rank <-
   file.path(dir_data,
             "2026-02-17-A-cellprofiler-stats",
@@ -88,11 +89,15 @@ names_map <- c(
     "Macrophage number of neighbors",
   "mac_Neighbors_SecondClosestDistance_60_mean" =
     "Distance (mean) from macrophage to second-closest cell",
+  "t_gam_Neighbors_SecondClosestDistance_60_median" =
+    "Distance (median) from T cells activating macrophages to second-closest cell",
   "gran_RadialDistribution_RadialCV_tnf_1of4_mean" =
     "Inner granuloma macrophage activation signal",
   ## https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.moments_central
+  "macs_AreaShape_CentralMoment_0_2_mean" =
+    "Macrophage aggregate y variance",
   "macs_AreaShape_CentralMoment_2_0_mean" =
-    "Macrophage aggregate shape variance",
+    "Macrophage aggregate x variance",
   "macs_AreaShape_MeanRadius_mean" =
     "Macrophage aggregate radius",
   "macs_AreaShape_Perimeter_mean" =
@@ -115,10 +120,16 @@ names_map <- c(
     "Macrophage median number of neighbors",
   "gran_AreaShape_MedianRadius_mean" =
     "Granuloma median radius",
+  "macs_RadialDistribution_FracAtD_ifng_1of4_mean" =
+    "Inner granuloma macrophage activation signal",
   "macs_RadialDistribution_FracAtD_ifng_4of4_mean" =
     "Outer granuloma macrophage activation signal",
+  "macs_RadialDistribution_FracAtD_tnf_4of4_mean" =
+    "Outer granuloma TNF",
   "t_cyts_AreaShape_EquivalentDiameter_mean" =
     "Cytotoxic T cell aggregate diameter",
+  "t_cyts_Intensity_UpperQuartileIntensity_tnf_mean" =
+    "TNF proximal to cytotoxic T cells",
   "t_gam_Location_CenterMassIntensity_X_tnf_IQR" =
     "T cells activating macrophages x-distribution",
   "t_gam_Location_CenterMassIntensity_Y_tnf_IQR" =
@@ -156,6 +167,8 @@ names_map <- c(
     "All T cells aggregate mean radius",
   "t_gam_Children_t_gams_Count_mean" =
     "1 / (Number of T cells activating macrophages)",
+  "t_gams_AreaShape_MajorAxisLength_mean" =
+    "T cells activating macrophages aggregate major-axis length",
   "t_gams_AreaShape_MinorAxisLength_mean" =
     "T cells activating macrophages aggregate minor-axis length"
 )
@@ -198,10 +211,10 @@ colors_cluster <-
   palette.colors(4, palette = "Okabe-Ito")[-1] %>%
   setNames(c("Transient", "Formation", "Maintenance"))
 labels_cluster <-
-    c("Formation",
+    c("Maintenance",
+      "Formation",
       "Transient",
-      "Maintenance",
-      "Formation") %>%
+      "Maintenance") %>%
   factor(levels = c("Formation", "Transient", "Maintenance"))
 ggheatmap(mat_full, filling = NULL) +
   ## Outline tiles with black lines and leave small gaps to distinguish
