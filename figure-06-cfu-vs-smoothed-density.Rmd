@@ -184,6 +184,49 @@ ppc_dens_overlay(y = df_sub$mtb,
   guides(color = guide_legend(override.aes = list(linewidth = 1)))
 ```
 
+```{r suppl-figure-corr-log-cfu}
+df_r2 <-
+  df_sub |>
+  select(-ntile) |>
+  pivot_longer(-mtb, names_to = "feature") |>
+  group_by(feature) |>
+  reframe(r2 = cor(mtb, value))
+levels <-
+  tibble::deframe(df_r2) |>
+  abs() |>
+  sort() |>
+  rev() |>
+  names()
+df_sub |>
+  select(-ntile) |>
+  pivot_longer(-mtb, names_to = "feature") |>
+  mutate(mtb = expm1(mtb) * expm1(9),
+         feature = fct(feature, levels)) |>
+  ggplot(aes(value, mtb)) +
+  theme_bw() +
+  theme(strip.text = element_text(size = 5)) +
+  labs(
+    x = "Spatial feature value",
+    y = "log10(CFU)") +
+  facet_wrap(
+    ~ feature,
+    ncol = 3,
+    scales = "free_x") +
+  scale_y_log10(label = scales::label_log()) +
+  geom_point(alpha = 0.1) +
+  geom_text(
+    data =
+      df_r2 |>
+      mutate(mtb = 10^5,
+             value = 0,
+             feature = fct(feature, levels)),
+    hjust = 1.1,
+    parse = TRUE,
+    size = 3,
+    aes(label = sprintf("R^2==%+.2f", r2),
+        x = Inf))
+```
+
 ```{r session-info}
 #| cache: false
 sessionInfo()
