@@ -25,9 +25,8 @@
 
   ```r
   ## Install the dependencies:
-  install.packages(c("BiocManager", "remotes"))
-  options(repos = BiocManager::repositories(), Ncpus = parallel::detectCores())
-  remotes::install_deps(dependencies = TRUE)
+  install.packages("pak")
+  pak::local_install_deps(dependencies = TRUE)
 
   ## Build the RMarkdown book:
   bookdown::render_book()
