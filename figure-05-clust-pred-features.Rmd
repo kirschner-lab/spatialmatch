@@ -9,7 +9,6 @@ library(purrr)      # map_df
 library(readr)      # read_csv
 library(tidyr)      # pivot_wider
 library(ggalign)    # ggheatmap
-library(forcats)    # fct, fct_reorder
 
 source("R/config.R")
 ```
@@ -215,7 +214,7 @@ labels_cluster <-
       "Formation",
       "Transient",
       "Maintenance") %>%
-  factor(levels = c("Formation", "Transient", "Maintenance"))
+  factor(levels = c("Transient", "Formation", "Maintenance"))
 ggheatmap(mat_full, filling = NULL) +
   ## Outline tiles with black lines and leave small gaps to distinguish
   ## contiguous dark tiles.
@@ -236,32 +235,6 @@ ggheatmap(mat_full, filling = NULL) +
   anno_left(size = unit(5, "char")) +
   align_dendro(k = n_clusters,
                distance = d,
-               ## Order cluster groups as Formation, Transient, Maintenance.
-               reorder_dendrogram = function(hclust, data) {
-                 ## Swap cluster 2 with 3.
-                 order_orig <- hclust$order
-                 named_orig <- cutree(hclust, n_clusters)[order_orig]
-                 named_reorder <- case_when(
-                   named_orig == 2L ~ 3L,
-                   named_orig == 3L ~ 2L,
-                   .default = named_orig
-                 ) |> setNames(names(named_orig))
-                 order_reorder <- order_orig[order(named_reorder)]
-                 ## ## Apply swap to the merge tree.
-                 ## merge_orig <- hclust$merge
-                 ## merge_orig_neg <- -merge_orig[merge_orig < 0]
-                 ## merge_reorder_neg <-
-                 ##   factor(merge_orig_neg) |>
-                 ##   fct_reorder(order(named_reorder)) |>
-                 ##   levels() |>
-                 ##   as.integer()
-                 ## merge_reorder <- merge_orig
-                 ## merge_reorder[merge_orig < 0] <- -merge_reorder_neg
-                 ## hclust$order <- order_reorder
-                 ## hclust$merge <- merge_reorder
-                 ## hclust$labels <- hclust$labels[order(named_reorder)]
-                 hclust
-               },
                aes(color = labels_cluster[branch])) +
   scale_color_manual(values = colors_cluster) +
   geom_point() +
