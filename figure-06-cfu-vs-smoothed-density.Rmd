@@ -12,6 +12,8 @@ library(snakecase)
 library(rstanarm)
 library(bayesplot)
 library(ggplot2)
+library(forcats)
+library(tidyr)
 
 source("R/config.R")
 ```
