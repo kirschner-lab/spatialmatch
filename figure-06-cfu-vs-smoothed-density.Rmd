@@ -187,12 +187,18 @@ ppc_dens_overlay(y = df_sub$mtb,
 ```
 
 ```{r suppl-figure-corr-log-cfu}
+#| cache: true
+#| dependson: -1
+#| fig.width: 6.5
+#| fig.height: 9
+
 df_r2 <-
   df_sub |>
   select(-ntile) |>
   pivot_longer(-mtb, names_to = "feature") |>
   group_by(feature) |>
   reframe(r2 = cor(mtb, value))
+df_r2
 levels <-
   tibble::deframe(df_r2) |>
   abs() |>
