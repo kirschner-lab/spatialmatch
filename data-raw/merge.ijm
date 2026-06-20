@@ -4,11 +4,11 @@
 img_type = 0; // 0 = GranSim, 1 = MIBI-TOF.
 home = getInfo("user.home");
 dir_inputs = newArray(
-	"~/modelruns/2024-07-19-A-gr-50k/img",
+	"~/modelruns/2026-02-17-A-cellprofiler-stats/06-ot-3-gransimg-gr",
 	"~/immunology/GR-ABM-ODE/simulation/scripts/calibration/mibi/imgs");
 dir_input = replace(dir_inputs[img_type], "~", home);
 dir_outputs = newArray(
-	"~/modelruns/2024-07-19-A-gr-50k/img_stacks",
+	"~/modelruns/2026-02-17-A-cellprofiler-stats/img_stacks",
 	"~/modelruns/2024-07-19-A-gr-50k/img_stacks_mibi");
 dir_output = replace(dir_outputs[img_type], "~", home);
 calibrations = newArray(0.02, 0.001);
@@ -31,9 +31,10 @@ for (i = 0; i < files_input_all.length; i++) {
 	file_split = split(replace(file, ".tif", ""), "_");
 	setResult("idx", j, j);
 	setResult("exp", j, parseInt(substring(file_split[0], 3)));
-	setResult("t", j, parseInt(substring(file_split[1], 4)));
-	setResult("ch", j, parseInt(file_split[2]));
-	ch_name = file_split[3];
+	setResult("rep", j, parseInt(substring(file_split[1], 3)));
+	setResult("t", j, parseInt(substring(file_split[2], 4)));
+	setResult("ch", j, parseInt(file_split[3]));
+	ch_name = file_split[4];
 	setResult("ch_name", j, ch_name);
 	if (matches(ch_name, "^fib|myofib|ifng|tnf$")) {
 		setResult("keep", j, false);
@@ -42,6 +43,7 @@ for (i = 0; i < files_input_all.length; i++) {
 	}
 	j++;
 }
+Table.sort("rep");
 Table.sort("ch");
 Table.sort("t");
 Table.sort("exp");
@@ -54,6 +56,7 @@ for (i = 0; i < nResults; i += n_channels) {
 		dir_output +
 		File.separator +
 		"exp" + getResult("exp", i) + "_" +
+		"rep" + getResult("rep", i) + "_" +
 		"time" + getResult("t", i) + ".tif";
 	// Read in the input images.
 	close("*");
@@ -92,7 +95,7 @@ for (i = 0; i < nResults; i += n_channels) {
 	    " pixel_height=" + calibration +
 	    " voxel_depth=" + calibration);
 	// Convert sequential object labeling to a binary mask.
-	run("Manual Threshold...", "min=0 max=0");
+	run("Manual Threshold", "min=0 max=0");
 	setThreshold(-1000000000000000000000000000000.0000, 0.000);
 	run("Analyze Particles...", "  show=Masks stack");
 	// Invert the mask.

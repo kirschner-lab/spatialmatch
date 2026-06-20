@@ -475,13 +475,14 @@ df_with_ot %>%
 ## being timepoints from a paired granuloma simulation (weeks 4, 11, 22).
 
 ## Import TIFF images generated using the data-raw/merge.ijm ImageJ script.
-dir_im_gransim <- file.path(dir_data, "2024-07-19-A-gr-50k", "img_stacks")
+dir_im_gransim <-
+  file.path(dir_data, "2026-02-17-A-cellprofiler-stats", "img_stacks")
 dir_im_mibi <- file.path(dir_data, "2024-07-19-A-gr-50k", "img_stacks_mibi")
 ## Add file paths to each dataset.
 df_im <-
   df_with_ot %>%
   drop_na() %>%
-  arrange(sample, loop)
+  arrange(sample, as.integer(loop))
 df_im <-
   df_im %>%
   inner_join(distinct(df_im, sample) %>%
@@ -539,7 +540,17 @@ im_color <- function(path,
   ## Return final color image.
   Image(im_max, colormode = "Color")
 }
-dir_fig_suppl <- knitr::opts_chunk$get("fig.path")
+## Path to save 3 digitally partnered images.
+if (! is.null(getOption("knitr.in.progress"))) {
+  dir_fig_suppl <- knitr::opts_chunk$get("fig.path")
+} else {
+  ## When interactively running outside the knitr environment, use the path
+  ## knitr used to generate the images from the previous block.
+  dir_fig_suppl <-
+    file.path("_bookdown_files",
+              "figure-07-08-ot-trajectories-and-images_files",
+              "figure-html")
+}
 n_groups <-
   df_im %>%
   group_by(sample) %>%
@@ -649,7 +660,7 @@ df_classif <-
            case_when(
              all(classif == "Uncontrolled") ~ "Uncontrolled",
              all(classif == "Controlling") ~ "Controlling",
-             .default = "Mixed")) |>
+             .default = "Indeterminate")) |>
   ungroup()
 ```
 
@@ -674,7 +685,6 @@ df_classif |>
 ```
 
 ```{r figure-08-ot-images}
-#| eval: false
 #| cache: true
 #| dependson:
 #| - -3
@@ -715,16 +725,25 @@ image_read(files_sample) |>
   image_montage(tile = "x1", geometry = "+25", gravity = "East") |>
   image_trim() |>
   image_ggplot() +
-  stat_brace(aes(group = type),
+  ## Using .data$x and .data$y in several layers below is necessary
+  ## for the bug introduced by:
+  ## https://github.com/ropensci/magick/commit/091de31e9d280447fd2c66adc0a95a1d33e51828
+  stat_brace(aes(x = .data$x,
+                 y = .data$y,
+                 group = type),
              data = df_label,
              rotate = 270,
              outside = FALSE) +
-  stat_bracetext(aes(label = type,
+  stat_bracetext(aes(x = .data$x,
+                     y = .data$y,
+                     label = type,
                      group = type),
                  data = df_label,
                  rotate = 270,
                  outside = FALSE) +
-  geom_text(aes(label = sample),
+  geom_text(aes(x = .data$x,
+                y = .data$y,
+                label = sample),
             data = tibble(sample = str_c("Sample ", samples),
                           x = c(150, 500, 850),
                           y = rep(400, times = 3)),
@@ -733,7 +752,9 @@ image_read(files_sample) |>
   arrow_past(150) + arrow_future(150) +
   arrow_past(500) + arrow_future(500) +
   arrow_past(850) + arrow_future(850) +
-  geom_tile(aes(fill = classif),
+  geom_tile(aes(x = .data$x,
+                y = .data$y,
+                fill = classif),
             data = tibble(x = rep(c(312.5, 662.5, 1012.5), each = 3),
                           y = rep(c(250, 150, 50), times = 3),
                           classif =
