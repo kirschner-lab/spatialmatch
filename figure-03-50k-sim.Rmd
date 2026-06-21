@@ -107,9 +107,7 @@ if (all(file.exists(file_cfu, file_flow))) {
     ## Remove single outlier diameter.
     dplyr::filter(granuloma_diameter_mm >= 0.5) %>%
     select(-granuloma_diameter_mm) %>%
-    pivot_longer(-time, names_to = "output") %>%
-    ## Ignore sterilization.
-    dplyr::filter(value > 0)
+    pivot_longer(-time, names_to = "output")
   df_flow <-
     read_csv(file_flow, show_col_types = FALSE) %>%
     ## Map columns to GranSim agents.
@@ -133,13 +131,14 @@ if (all(file.exists(file_cfu, file_flow))) {
 colors <- palette.colors(4, palette = "Okabe-Ito")[-1]
 plot_time <-
   df_std %>%
-  mutate(time = time / 7) %>%
+  mutate(time = time / 7,
+         value = value + 1) %>%
   ggplot(aes(x = time,
              y = value)) +
   facet_grid(~ output,
              scales = "free_y") +
   labs(x = "Week (post-infection)",
-       y = "Cell counts",
+       y = "Cell counts + 1",
        color = "Classification") +
   theme_bw() +
   theme(legend.position = "top",
@@ -148,7 +147,11 @@ plot_time <-
   ## The subsequent geom_line(linewidth = 0.1, ...) setting will make the
   ## legend harder to see, so reset the legend to the default linewidth.
   guides(color = guide_legend(override.aes = list(linewidth = 1))) +
-  scale_y_log10(labels = scales::label_log()) +
+  ## Remove padding around data on the x-axis.
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_log10(labels = scales::label_log(),
+                breaks = 10^(0:6),
+                expand = c(0.001, 0.05)) +
   ## Reorder the legend to match how the classifications appear in the plot.
   scale_color_manual(breaks = c("Uncontrolled", "Controlling", "Sterile"),
                      values = colors) +
@@ -162,6 +165,7 @@ if (all(c("df_cfu", "df_flow") %in% ls())) {
     geom_point(data =
                  bind_rows(df_cfu, df_flow) %>%
                  mutate(output = outputs[output],
+                        value = value + 1,
                         time = time / 7),
                size = 0.5)
 }
