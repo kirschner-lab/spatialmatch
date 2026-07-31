@@ -192,15 +192,15 @@ ppc_dens_overlay(y = df_sub$mtb,
 #| fig.width: 6.5
 #| fig.height: 9
 
-df_r2 <-
+df_r <-
   df_sub |>
   select(-ntile) |>
   pivot_longer(-mtb, names_to = "feature") |>
   group_by(feature) |>
-  reframe(r2 = cor(mtb, value))
-df_r2
+  reframe(r = cor(mtb, value))
+df_r
 levels <-
-  tibble::deframe(df_r2) |>
+  tibble::deframe(df_r) |>
   abs() |>
   sort() |>
   rev() |>
@@ -224,14 +224,14 @@ df_sub |>
   geom_point(alpha = 0.1) +
   geom_text(
     data =
-      df_r2 |>
+      df_r |>
       mutate(mtb = 10^5,
              value = 0,
              feature = fct(feature, levels)),
     hjust = 1.1,
     parse = TRUE,
     size = 3,
-    aes(label = sprintf("R^2==%+.2f", r2),
+    aes(label = sprintf("R==%+.2f", r),
         x = Inf))
 ```
 
