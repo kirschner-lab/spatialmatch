@@ -143,10 +143,24 @@ system.time({
   )
 })
 ```
+```{r bayesian-regression-model}
+#| cache: true
+#| dependson: -1
+
+summary(refm_fit)
+
+## The summary above does a poor job of showing significant figures of measures
+## we care about reporting, so tabulate those explicity:
+tibble(
+  var = names(coef(refm_fit)),
+  coef = coef(refm_fit),
+  se = se(refm_fit)) |>
+  print(n = Inf)
+```
 
 ```{r figure-06-cfu-vs-smoothed-density}
 #| cache: true
-#| dependson: -1
+#| dependson: -2
 #| fig.width: 6.5
 #| fig.height: 3
 
