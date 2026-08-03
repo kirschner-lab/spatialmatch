@@ -18,12 +18,13 @@ source("R/config.R")
 
 ```{r figure-09-prcc}
 #| cache: true
-#| fig.width: 5.2
-#| fig.height: 6.5
-file_prcc <-
+#| fig.width: 8
+#| fig.height: 7
+files_type <- c("consensus", "indeterminate")
+files_prcc <-
   file.path(dir_data,
             "2026-02-17-A-cellprofiler-stats",
-            "06-prcc_ot_9.mat")
+            str_c("06-prcc_ot_", files_type, "_9.mat"))
 read_prcc <- function(path) {
   ## Run PRCC for all outcomes.
   h5 <- H5File$new(path, mode = "r")
@@ -80,7 +81,10 @@ read_prcc <- function(path) {
                         signif_uncorr = signif_uncorr,
                         signif_bh = signif_bh))
 }
-df_prcc_h5 <- read_prcc(file_prcc)
+df_prcc_h5 <-
+  map(files_prcc, read_prcc) |>
+  setNames(files_type) |>
+  list_rbind(names_to = "type")
 df_prcc <-
   df_prcc_h5 %>%
   mutate(across(starts_with("signif"), ~ pmin(.x, 1))) %>%
@@ -104,19 +108,23 @@ df_prcc <-
       fct_recode(
         "IL10 from activated macrophages" =
             "Core.Mac/@dIL10Act",
+        "IL10 from infected macrophages" =
+            "Core.Mac/@dIL10Inf",
         "Macrophage recruitment" =
           "Recruit.Prob.Mac/@maxRecProb",
         "Regulatory T cell recruitment" =
           "Recruit.Prob.Tcell.Treg/@maxRecProb",
         "IFN-γ+ T cell recruitment" =
           "Recruit.Prob.Tcell.Tgam/@maxRecProb",
-        "Cytotoxic T cell recruitment" =
+        "CTL recruitment" =
           "Recruit.Prob.Tcell.Tcyt/@maxRecProb",
+        "% Mtb-specific CTL" =
+          "Recruit.Prob.Tcell.Tcyt/@probCognate",
         "% Mtb-specific IFN-γ+ T cell" =
           "Recruit.Prob.Tcell.Tgam/@probCognate",
         "TNF from IFN-γ+ T cells" =
           "Core.Tcell.Tgam/@probTNFProducer",
-        "TNF from cytotoxic T cells" =
+        "TNF from CTLs" =
           "Core.Tcell.Tcyt/@probTNFProducer",
         "IL10 diffusivity" =
           "Core/@diffusivityIL10",
@@ -127,6 +135,7 @@ df_prcc <-
   select(-day) %>%
   ## Tweak output labels.
   mutate(
+    type = str_to_sentence(type),
     output =
       ## Set order of outputs.
       fct_inorder(output) %>%
@@ -140,7 +149,7 @@ df_prcc <-
         "Caseum-granuloma ratio" = "CaseumRatio",
         "Macrophages" = "Mac ScaledRing",
         "IFN-γ+ T cells" = "Tgam ScaledRing",
-        "Cytotoxic T cells" = "Tcyt ScaledRing",
+        "CTLs" = "Tcyt ScaledRing",
         "Regulatory T cells" = "Treg ScaledRing",
         "CFU" = "TotMtbInGranScaledRing"))
 ## Note that the significance columns are for individual PRCC values; this
@@ -148,13 +157,13 @@ df_prcc <-
 df_prcc_signif <-
   df_prcc %>%
   drop_na() %>%
-  group_by(output) %>%
+  group_by(type, output) %>%
   filter(prcc %in% boxplot.stats(prcc)$out) %>%
   ungroup() %>%
-  distinct(output, param) %>%
+  distinct(type, output, param) %>%
   mutate(week = 22L) %>%
   left_join(df_prcc,
-            by = c("week", "output", "param"))
+            by = c("type", "week", "output", "param"))
 ###############################################################################
 ## Begin block to ensure intersecting parameter lines have different colors.
 ###############################################################################
@@ -165,9 +174,10 @@ n_colors <- length(params_signif)
 ## Find parameter line intersections:
 df_intersect <-
   df_prcc %>%
-  mutate(output = as.integer(output),
+  mutate(type = as.integer(as.factor(type)),
+         output = as.integer(output),
          param = as.integer(param)) %>%
-  pivot_wider(id_cols = c(week, output),
+  pivot_wider(id_cols = c(type, week, output),
               names_from = param,
               values_from = prcc) %>%
   group_by(output) %>%
@@ -278,19 +288,19 @@ set_color_id <- function(param) {
 ## End block to ensure intersecting parameter lines have different colors.
 ###############################################################################
 weeks <- 22L
-x_max <- 35L
+x_max <- 45L
 color_palette <-
   ## Remove yellow because is hard to see even for non-colorblind people.
   palette.colors(max(colors) + 2L, palette = "Okabe-Ito")[-c(1, 5)]
 df_prcc %>%
   semi_join(df_prcc_signif %>%
-              distinct(param, output),
-            by = c("param", "output")) %>%
+              distinct(type, param, output),
+            by = c("type", "param", "output")) %>%
   mutate(color_id = set_color_id(param)) %>%
   ggplot(aes(x = week,
              y = prcc,
              group = param)) +
-  facet_wrap(~ output, ncol = 2) +
+  facet_wrap(output ~ type, ncol = 4) +
   theme_bw() +
   theme(
     ## Using clip = "off" in coord_cartesian() together with increasing the
@@ -298,15 +308,19 @@ df_prcc %>%
     ## plot area.
     plot.margin = unit(c(0.1, 2.4, 0.1, 0.1), "cm"),
     ## Increase spacing between facet columns.
-    panel.spacing.x = unit(4.5, "lines"),
+    panel.spacing.x = unit(4, "lines"),
+    ## Increase spacing between facet rows.
+    panel.spacing.y = unit(1.5, "lines"),
     ## X-axis title centering looks bad after ajusting panel spacing, so left
     ## align instead.
-    axis.title.x = element_text(hjust = 0.07)) +
+    axis.title.x = element_text(hjust = 0.15),
+    strip.text = element_text(
+      size = 6.6, margin = margin(0.2, 0, 0.2, 0, "lines"))) +
   coord_cartesian(clip = "off") +
   guides(color = "none",
          alpha = "none") +
   labs(x = "Week (post-infection)",
-       y = "Partial rank correlation (PRC)") +
+       y = "Partial rank correlation coefficient (PRCC)") +
   geom_hline(yintercept = 0) +
   geom_line(alpha = 0.1,
             data = anti_join(df_prcc,
@@ -316,7 +330,7 @@ df_prcc %>%
   geom_point(data = . %>% filter(signif_bh < 0.05),
              aes(color = color_id),
              size = 0.5) +
-  geom_text_repel(aes(label = str_wrap(param, width = 16L),
+  geom_text_repel(aes(label = str_wrap(param, width = 20L),
                       color = color_id),
                   lineheight = 0.8,
                   ## Relax y-limit to reduce crowding.
@@ -332,9 +346,9 @@ df_prcc %>%
                   ## Draw all segments.
                   min.segment.length = 0,
                   segment.color = "black",
-                  segment.curvature = -1e-20,
+                  segment.curvature = 0,
                   ## Reduce text size.
-                  size = 2.5) +
+                  size = 2) +
   geom_point(data = df_prcc_signif,
              size = 1,
              color = "black") +
@@ -346,9 +360,10 @@ df_prcc %>%
   scale_y_continuous(expand = c(0, 0)) +
   geom_text(aes(x = -Inf,
                 y = Inf,
-                label = LETTERS[as.integer(output)]),
+                label = LETTERS[
+                  ifelse(type == "Consensus", as.integer(output), NA)]),
             hjust = 1.6,
-            vjust = -0.5,
+            vjust = -2,
             inherit.aes = FALSE)
 ```
 

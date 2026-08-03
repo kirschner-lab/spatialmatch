@@ -286,10 +286,17 @@ df_in_range %>%
 ## Pair granulomas before optimal transport only when they have no NAs.
 stopifnot(df_in_range == drop_na(df_in_range))
 
-n_loops <- 10
-df_pairs_loops <- vector("list", length = n_loops)
+## Assume no overlaps for the theoretical maximum number of loops for candidate
+## digital partners, then later resize to the achievable loops.
+n_loops_max <-
+  df_in_range |>
+  count(sample) |>
+  summarize(n = min(n)) |>
+  pull()
+df_pairs_loops <- vector("list", length = n_loops_max)
+n_loops <- n_loops_max
 df_in_range_loops <- df_in_range
-for (i in seq_len(n_loops)) {
+for (i in seq_len(n_loops_max)) {
   ## Prepare GranSim feature matrix with dimensions [F, L].
   mat_gs <-
     select(df_in_range_loops, exp, rep) %>%
@@ -352,7 +359,14 @@ for (i in seq_len(n_loops)) {
                    rhs = rep(1, nrow(constraints_mibi) + nrow(constraints_gs)),
                    types = "B",
                    max = FALSE)
-  stopifnot(ot$status == 0L)
+  if (ot$status != 0L) {
+    ## At some point, there will be an insufficient number of simulated
+    ## granulomas available to pair with optimal transport due to successive
+    ## elimination.
+    n_loops <- i - 1L
+    df_pairs_loops <- df_pairs_loops[seq_len(n_loops)]
+    break
+  }
   ot_soln <- ot$solution
   stopifnot(sum(ot_soln) == n_mibi)
   df_pairs_loops[[i]] <-
@@ -375,8 +389,11 @@ for (i in seq_len(n_loops)) {
   stopifnot(n_exp(df_in_range_loops) == n_exp_before - length(exps_to_remove))
   stopifnot(length(exps_to_remove) == n_mibi)
 }
+message(sprintf("Finished %d loops of pairing granulomas", n_loops))
 
 df_pairs <- bind_rows(df_pairs_loops, .id = "loop")
+## Number of tibbles must be the same as n_loops.
+stopifnot(n_loops == df_pairs |> pull(loop) |> as.integer() |> max())
 ## All MIBI-TOF samples must be present.
 stopifnot(distinct(df_pairs, sample) == distinct(df_in_range, sample))
 ## No GranSim exp should be repeated.
@@ -684,11 +701,64 @@ df_classif |>
   print(n = Inf)
 ```
 
+```{r export-ot-runlists}
+#| cache: true
+#| dependson: -1
+
+## Write runlist files with the OT experiments and use all replicates for PRCC.
+n_loops_prcc <- 50
+df_ot_consensus <-
+  df_pairs |>
+  semi_join(
+    df_classif |>
+      select(sample, agree) |>
+      filter(agree != "Indeterminate"),
+    by = "sample") |>
+  filter(as.integer(loop) <= n_loops_prcc) |>
+  select(exp) |>
+  arrange(exp) |>
+  expand_grid(rep = 1:3)
+df_ot_consensus
+df_ot_consensus |>
+  write_delim(sprintf("ot-%d-consensus.runlist",
+                      n_loops_prcc),
+              col_names = FALSE)
+n_samples <-
+  df_classif |>
+  distinct(sample, agree) |>
+  nrow()
+(n_samples_indeterminate <-
+   df_classif |>
+   distinct(sample, agree) |>
+   filter(agree == "Indeterminate") |>
+   nrow())
+(n_samples_consensus <- n_samples - n_samples_indeterminate)
+(n_loops_prcc_indeterminate <-
+   ceiling(n_loops_prcc * n_samples_consensus / n_samples_indeterminate))
+df_ot_indeterminate <-
+  df_pairs |>
+  semi_join(
+    df_classif |>
+      select(sample, agree) |>
+      filter(agree == "Indeterminate"),
+    by = "sample") |>
+  filter(as.integer(loop) <= n_loops_prcc_indeterminate) |>
+  select(exp) |>
+  arrange(exp) |>
+  expand_grid(rep = 1:3)
+df_ot_indeterminate
+stopifnot(nrow(df_ot_indeterminate) >= nrow(df_ot_consensus))
+df_ot_indeterminate |>
+  write_delim(sprintf("ot-%d-indeterminate.runlist",
+                      n_loops_prcc_indeterminate),
+              col_names = FALSE)
+```
+
 ```{r figure-08-ot-images}
 #| cache: true
 #| dependson:
+#| - -4
 #| - -3
-#| - -2
 #| fig.width: 6.5
 #| fig.height: 3
 samples <- c(4L, 33L, 57L)
@@ -784,7 +854,7 @@ image_read(files_sample) |>
 
 ```{r figure-01-ot-matrix}
 #| cache: true
-#| dependson: -6
+#| dependson: -7
 #| fig.width: 2
 #| fig.height: 2
 
