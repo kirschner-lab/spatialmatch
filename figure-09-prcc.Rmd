@@ -16,9 +16,9 @@ library(ggrepel) # geom_text_repel
 source("R/config.R")
 ```
 
-```{r figure-09-prcc}
+```{r figure-prcc}
 #| cache: true
-#| fig.width: 8
+#| fig.width: 5.2
 #| fig.height: 7
 files_type <- c("consensus", "indeterminate")
 files_prcc <-
@@ -292,15 +292,17 @@ x_max <- 45L
 color_palette <-
   ## Remove yellow because is hard to see even for non-colorblind people.
   palette.colors(max(colors) + 2L, palette = "Okabe-Ito")[-c(1, 5)]
-df_prcc %>%
+for (type_ in pull(distinct(df_prcc, type))) {
+  plot_prcc <- df_prcc %>%
   semi_join(df_prcc_signif %>%
               distinct(type, param, output),
             by = c("type", "param", "output")) %>%
+  filter(type == type_) %>%
   mutate(color_id = set_color_id(param)) %>%
   ggplot(aes(x = week,
              y = prcc,
              group = param)) +
-  facet_wrap(output ~ type, ncol = 4) +
+  facet_wrap(~ output, ncol = 2) +
   theme_bw() +
   theme(
     ## Using clip = "off" in coord_cartesian() together with increasing the
@@ -309,25 +311,26 @@ df_prcc %>%
     plot.margin = unit(c(0.1, 2.4, 0.1, 0.1), "cm"),
     ## Increase spacing between facet columns.
     panel.spacing.x = unit(4, "lines"),
-    ## Increase spacing between facet rows.
-    panel.spacing.y = unit(1.5, "lines"),
     ## X-axis title centering looks bad after ajusting panel spacing, so left
     ## align instead.
-    axis.title.x = element_text(hjust = 0.15),
+    axis.title.x = element_text(hjust = 0),
     strip.text = element_text(
       size = 6.6, margin = margin(0.2, 0, 0.2, 0, "lines"))) +
   coord_cartesian(clip = "off") +
   guides(color = "none",
          alpha = "none") +
   labs(x = "Week (post-infection)",
-       y = "Partial rank correlation coefficient (PRCC)") +
+       y = "Partial rank correlation coefficient (PRCC)",
+       ## Prevent accidents by including the title and clip out later.
+       title = type_) +
   geom_hline(yintercept = 0) +
   geom_line(alpha = 0.1,
-            data = anti_join(df_prcc,
+            data = anti_join(df_prcc %>%
+                               filter(type == type_),
                              distinct(df_prcc_signif, param, output),
                              by = c("param", "output"))) +
   geom_line(aes(color = color_id)) +
-  geom_point(data = . %>% filter(signif_bh < 0.05),
+  geom_point(data = . %>% filter(type == type_, signif_bh < 0.05),
              aes(color = color_id),
              size = 0.5) +
   geom_text_repel(aes(label = str_wrap(param, width = 20L),
@@ -338,6 +341,7 @@ df_prcc %>%
                   ## Constrain labels 1 week after the last timepoint.
                   xlim = c(weeks + 1L, x_max),
                   data = df_prcc_signif %>%
+                    filter(type == type_) %>%
                     mutate(color_id = set_color_id(param)),
                   ## Only auto-nudge in y-direction.
                   direction = "y",
@@ -349,7 +353,8 @@ df_prcc %>%
                   segment.curvature = 0,
                   ## Reduce text size.
                   size = 2) +
-  geom_point(data = df_prcc_signif,
+  geom_point(data = df_prcc_signif %>%
+               filter(type == type_),
              size = 1,
              color = "black") +
   scale_color_manual(values = color_palette) +
@@ -360,11 +365,12 @@ df_prcc %>%
   scale_y_continuous(expand = c(0, 0)) +
   geom_text(aes(x = -Inf,
                 y = Inf,
-                label = LETTERS[
-                  ifelse(type == "Consensus", as.integer(output), NA)]),
+                label = LETTERS[as.integer(output)]),
             hjust = 1.6,
-            vjust = -2,
+            vjust = -0.5,
             inherit.aes = FALSE)
+  print(plot_prcc)
+}
 ```
 
 ```{r session-info}
