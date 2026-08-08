@@ -11,6 +11,7 @@ library(stringr)
 library(tidyr)
 library(forcats)
 library(ggplot2)
+library(ggalign) # ggheatmap
 library(EBImage)
 library(magick)
 library(ggbrace) # geom_brace
@@ -410,9 +411,75 @@ df_with_ot <-
             by = c("sample", "exp", "rep"))
 ```
 
-```{r figure-07-ot-trajectories}
+```{r suppl-figure-cdp-cost-matrix}
 #| cache: true
 #| dependson: -1
+#| fig.width: 6
+#| fig.height: 5
+
+## Prepare GranSim feature matrix with dimensions [F, L].
+mat_gs <-
+  select(df_in_range, exp, rep) %>%
+  left_join(df_gs,
+            by = c("exp", "rep")) %>%
+  select(-exp, -rep) %>%
+  as.matrix() %>%
+  `dimnames<-`(NULL) %>%
+  t()
+## Prepare MIBI-TOF feature matrix with dimensions [F, L].
+mat_mibi <-
+  select(df_in_range, sample) %>%
+  left_join(df_mibi,
+            by = "sample") %>%
+  select(-sample) %>%
+  as.matrix() %>%
+  `dimnames<-`(NULL) %>%
+  t()
+## Calculate the cost vector with dimensions [L].
+cost_vec <- c(pull(df_elpd, elpd_diff) %*% abs(mat_gs - mat_mibi))
+
+## Plot heatmap.
+mat_cost <-
+  df_in_range |>
+  select(sample, exp, rep) |>
+  unite("exp_rep", c("exp", "rep")) |>
+  mutate(cost = cost_vec,
+         sample = str_remove(sample, "^sample")) |>
+  pivot_wider(id_cols = sample,
+              names_from = "exp_rep",
+              values_from = "cost") |>
+  tibble::column_to_rownames("sample") |>
+  as.matrix()
+## NA values will cause hclust to fail.
+dist_mat <- max(mat_cost, na.rm = TRUE) + 1L - mat_cost
+dist_mat[is.na(dist_mat)] <- Inf
+dist_rows <- dist(dist_mat, method = "canberra")
+dist_cols <- dist(t(dist_mat), method = "canberra")
+mat_cost |>
+  ggheatmap(filling = "raster") +
+  scale_fill_viridis_c(na.value = "gray90") +
+  scale_x_continuous(breaks = NULL) +
+  scale_y_reverse() +
+  labs(x = "GranSim granuloma",
+       y = "MIBI-TOF sample",
+       fill = "Cost") +
+  anno_left(size = unit(5, "char")) +
+  align_dendro(distance = dist_rows) +
+  ## Remove unnecessary labels of align_dendro().
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  labs(x = NULL) +
+  anno_top(size = unit(5, "char")) +
+  align_dendro(distance = dist_cols) +
+  ## Remove unnecessary labels of align_dendro().
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  labs(y = NULL)
+```
+
+```{r figure-07-ot-trajectories}
+#| cache: true
+#| dependson: -2
 #| fig.width: 6.5
 #| fig.height: 5.5
 ## Plot trajectories of the top-3 paired and all candidate granulomas.
@@ -484,7 +551,7 @@ df_with_ot %>%
 
 ```{r suppl-figure-ot-images}
 #| cache: true
-#| dependson: -2
+#| dependson: -3
 ## Plot images of experimental data and top-3 digitally paired granulomas.
 ##
 ## For each experimental sample, plot 3x3 partner images with the first row
@@ -638,7 +705,7 @@ for (i in seq_len(n_groups)) {
 
 ```{r prepare-input-classif}
 #| cache: true
-#| dependson: -3
+#| dependson: -4
 ## Whether GranSim granulomas are uncontrolled or controlling CFU.
 df_classif <-
   df_pairs |>
@@ -854,7 +921,7 @@ image_read(files_sample) |>
 
 ```{r figure-01-ot-matrix}
 #| cache: true
-#| dependson: -7
+#| dependson: -8
 #| fig.width: 2
 #| fig.height: 2
 
