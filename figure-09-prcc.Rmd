@@ -12,6 +12,7 @@ library(purrr)
 library(Matrix)  # spMatrix
 library(Rglpk)   # Rglpk_solve_LP
 library(ggrepel) # geom_text_repel
+library(readr)
 
 source("R/config.R")
 ```
@@ -102,7 +103,9 @@ df_prcc <-
                               "@kApoptosis$"),
                             collapse = "|"))) %>%
   ## Rename parameters to be more legible.
-  mutate(param =
+  mutate(
+    param_orig = param,
+    param =
       ## Rename parameters to be more legible.
       fct(param) %>%
       fct_recode(
@@ -371,6 +374,121 @@ for (type_ in pull(distinct(df_prcc, type))) {
             inherit.aes = FALSE)
   print(plot_prcc)
 }
+```
+
+```{r suppl-figure-param-spatial-corr}
+#| cache: true
+#| dependson: -1
+#| fig.width: 8
+#| fig.height: 8
+
+## Plot top correlations of parameters with spatial statistics.
+file_stats <-
+  file.path(dir_data,
+            "2026-02-03-A-gr-20k-3rep",
+            "output-lhs-7d-interval-stat-cols-10.csv.zst")
+file_features <-
+  file.path(dir_data,
+            "2026-02-17-A-cellprofiler-stats",
+            "02-cellprofiler-output-combined",
+            "week22.csv.zst")
+file_rank <-
+  file.path(dir_data,
+            "2026-02-17-A-cellprofiler-stats",
+            "05-r-varsel-output",
+            "rank_week22.csv")
+## Predictive spatial features.
+features <-
+  read_csv(
+    file_rank,
+    col_select = c("size", "ranking_fulldata"),
+    col_types = cols(
+      size = "i",
+      ranking_fulldata = "c")) |>
+  filter(size != 0L) |>
+  pull(ranking_fulldata)
+## PRCC parameters.
+df_params_signif <- distinct(df_prcc_signif, param, param_orig)
+## The CSV file_features has long lines; the default 2^17 buffer is
+## insufficient.
+Sys.setenv(VROOM_CONNECTION_SIZE = 2^19)
+cols_param <-
+  read_csv(zstdfile(file_stats),
+           n_max = 0,
+           show_col_types = FALSE) |>
+  colnames() |>
+  str_subset("^GR[.]")
+cols_param <-
+  cols_param[cols_param %in% str_c("GR.", pull(df_params_signif, param_orig))]
+df_param <-
+  read_csv(zstdfile(file_stats),
+           col_select = c("exp", "time", "TotMtbInGranScaledRing", cols_param),
+           col_types = cols(exp = "c", time = "i", .default = "d")) |>
+  dplyr::filter(time == max(time)) |>
+  select(-time) |>
+  dplyr::rename(mtb = TotMtbInGranScaledRing) |>
+  ## Experimentally, we do not see granulomas with more than 1M CFU.
+  dplyr::filter(! (mtb > 1e6)) |>
+  mutate(mtb = log1p(mtb) / log(9)) |>
+  ## Cleanup inputs as we did for regression.
+  ##
+  ## Replace problematic values with zero for now.
+  mutate(across(everything(),
+                function(x)
+                  replace(x, is.na(x) | x < 0 | is.infinite(x), 0))) |>
+  ## Remove zero-values.
+  filter(mtb > 0) |>
+  mutate(rep =
+           str_split_i(exp, fixed("."), 2L) |>
+           as.integer(),
+         exp  =
+           as.double(exp) |>
+           floor() |>
+           as.integer(),
+         .after = 1L)  |>
+  dplyr::rename(Metadata_Site = exp,
+                Metadata_Rep = rep) |>
+  inner_join(
+    read_csv(
+      zstdfile(file_features),
+      col_select = c("Metadata_Site", "Metadata_Rep", features),
+      col_types =
+        cols(Metadata_Site = "i", Metadata_Rep = "i", .default = "d")),
+    by = c("Metadata_Site", "Metadata_Rep"))
+
+df_cor_xy <-
+  expand_grid(x_name = cols_param,
+              y_name = features) |>
+  rowwise() |>
+  mutate(cor = cor(pull(df_param, x_name),
+                   pull(df_param, y_name))) |>
+  drop_na() |>
+  slice_max(abs(cor), n = 9L) |>
+  mutate(x_name = fct_inorder(x_name),
+         y_name = fct_inorder(y_name)) |>
+  rowwise() |>
+  mutate(x = list(pull(df_param, x_name)),
+         y = list(pull(df_param, y_name))) |>
+  unnest(c(x, y))
+df_cor_xy |>
+  ggplot(aes(x, y)) +
+  theme_bw() +
+  theme(strip.text.x = element_text(size = 6.5)) +
+  facet_wrap(~ x_name + y_name,
+             ncol = 3,
+             scales = "free") +
+  geom_point(size = 0.1, alpha = 0.05) +
+  labs(x = "GranSim parameter value",
+       y = "Spatial statistic value") +
+  geom_text(data =
+              df_cor_xy |>
+              group_by(x_name, y_name, cor) |>
+              summarize(x = max(x), y = max(y)),
+            hjust = 1.1,
+            parse = TRUE,
+            size = 3,
+            aes(label = sprintf("R==%+.2f", cor),
+                x = Inf))
 ```
 
 ```{r session-info}
