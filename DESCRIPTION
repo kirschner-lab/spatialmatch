@@ -39,6 +39,7 @@ Suggests:
     Rglpk,
     rprojroot,
     rstanarm,
+    scales,
     shadowtext,
     snakecase,
     stringr,

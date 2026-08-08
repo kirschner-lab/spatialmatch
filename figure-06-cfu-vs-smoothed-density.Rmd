@@ -14,6 +14,7 @@ library(bayesplot)
 library(ggplot2)
 library(forcats)
 library(tidyr)
+library(scales)
 
 source("R/config.R")
 ```
@@ -247,6 +248,46 @@ df_sub |>
     size = 3,
     aes(label = sprintf("R==%+.2f", r),
         x = Inf))
+```
+
+```{r suppl-figure-var-pred}
+#| cache: true
+#| dependson: -4
+#| fig.width: 6.5
+#| fig.height: 5
+
+(
+  plot(cvvs, deltas = TRUE) +
+    theme_bw() +
+    theme(
+      ## Reduce text angle of long feature names.
+      axis.text.x = element_text(angle = 30L, hjust = 1L),
+      ## Fix clipping of long feature names.
+      plot.margin = margin(l = 80),
+      ## Hide facet labels for the single ELPD facet.
+      strip.background = element_blank(),
+      strip.text = element_blank()) +
+    ## Higlight small changes using pseudo log10 scale.
+    scale_y_continuous(trans = transform_pseudo_log(base = 10L),
+                       breaks = -c(10^(0:4), 50000))
+) |>
+  (function(x) {
+    ## Smaller point sizes to better show the normal approximation vertical
+    ## bars.  NB: Found that layer 4 contains geom_point by inspecting
+    ## str(x$layers).
+    x$layers[[4]]$aes_params$size <- 1
+    x
+  })()
+```
+
+```{r suppl-figure-cv}
+#| cache: true
+#| dependson: -5
+#| fig.width: 8.5
+#| fig.height: 3.25
+
+plot(cv_proportions(cvvs, cumulate = TRUE)) +
+  guides(fill = guide_legend(position = "top"))
 ```
 
 ```{r session-info}
