@@ -246,7 +246,72 @@ ggheatmap(mat_full, filling = NULL) +
        color = "Cluster") +
   guides(color = guide_legend())
 ```
-	
+
+```{r suppl-figure-clust-pred-features-contig}
+#| cache: true
+#| dependson: -1
+#| fig.width: 8
+#| fig.height: 14
+
+contigs <- seq(1L, 7L)
+for (contig in contigs) {
+  mat_full <-
+    df_varsel %>%
+    ## Remove features that appear for fewer than the contiguous weeks nusance
+    ## parameter.
+    inner_join(df_varsel %>%
+                 pivot_wider(
+                   id_cols = ranking_fulldata,
+                   names_from = week,
+                   values_from = size,
+                   values_fill = 0L) %>%
+                 nest(n = -ranking_fulldata) %>%
+                 rowwise() %>%
+                 mutate(n = (function(x) {
+                   rle <-
+                     unlist(x) |>
+                     (function(x) x > 0L)() |>
+                                        rle()
+                   max(rle$lengths[rle$values])
+                 })(n)) %>%
+                 filter(n >= contig) %>%
+                 select(-n),
+               by = "ranking_fulldata") %>%
+    pivot_wider(id_cols = ranking_fulldata,
+                names_from = week,
+                values_from = size) %>%
+    tibble::column_to_rownames(var = "ranking_fulldata") %>%
+    as.matrix()
+  ## NA values will cause hclust to fail.
+  d_mat <- max(mat_full, na.rm = TRUE) + 1L - mat_full
+  d_mat[is.na(d_mat)] <- Inf
+  distance <- dist(d_mat, method = "canberra")
+  plot <-
+    ggheatmap(mat_full, filling = NULL) +
+    ## Outline tiles with black lines and leave small gaps to distinguish
+    ## contiguous dark tiles.
+    geom_tile(aes(fill = value), color = "black", width = 0.95, height = 0.95) +
+    coord_fixed() +
+    scale_y_continuous(position = "right") +
+    labs(x = "Week",
+         y = "Spatial feature",
+         fill = "Rank") +
+    ## Color-bind friendly palette.
+    scale_fill_gradient(low = "black",
+                        high = "gray90",
+                        na.value = "white",
+                        breaks = c(1, 18),
+                        guide = NULL) +
+    anno_left(size = unit(5, "char")) +
+    align_dendro(distance = distance) +
+    ## Remove unnecessary labels of align_dendro().
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank()) +
+    labs(x = NULL)
+  print(plot)
+}
+```
+
 ```{r session-info}
 #| cache: false
 sessionInfo()
