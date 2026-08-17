@@ -58,13 +58,16 @@
   optimizations to prevent high memory loads from crashing the job are
   contained and documented within the `*.sbatch` job submission scripts.
   Except for `modelruns/2026-02-03-A-gr-20k-3rep`, all model-runs use the
-  Purdue Anvil cluster.  Most jobs are embarrassingly parallel serial CPU jobs
+  U-M Lighthouse cluster.  Most jobs are embarrassingly parallel serial CPU jobs
   run without MPI, or GPUs, or any requirement for special network topology or
   high-speed interconnect on large clusters.
 
   - `modelruns/2026-02-03-A-gr-20k-3rep` had the highest CPU need for 60,000
-    simulations (20,000 samples x 3 replicates) and therefore used the U-M
-    Lighthouse and U-M Great Lakes clusters.
+    simulations (20,000 samples x 3 replicates) and therefore also used the
+    Purdue Anvil and U-M Great Lakes clusters.
+
+  - `modelruns/2026-02-03-B-grviz-classif` also used a personal computer
+    running Debian 13 Linux to use `xdotool` for automation of `grviz-lung`.
 
 ## Flowcharts of model-run directories
 
@@ -415,20 +418,22 @@ Notes for "[2026-02-17-A-cellprofiler-stats](#modelruns2026-02-17-A-cellprofiler
   simplify building these images but this build variant has not been tested for
   this research project.
 
-### modelruns/2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k
+### modelruns/2026-02-03-B-grviz-classif
 
 ```uniline
 ╭─Inputs─────────────────────────────────╮
 │gr *                                    │
 │lung-model-options-short.sh             │
 │*.xml *                                 │
-│runlist                                 │
+│classif.runlist *                       │
 ╰────┰───────────────────────────────────╯
      ┃
      ▼
-╭─Command──────────────────╮
-│submission-command-history│
-╰────┰─────────────────────╯
+╭─Command──────────────────────────╮
+│lhssubmit-job-array-runlist \     │
+│  ./gr classif.rulist 096:00:00 \ │
+│  lung-model-options-short.sh 1   │
+╰────┰─────────────────────────────╯
      ┃
      ▼
 ╭─Outputs───────────╮
@@ -448,24 +453,5 @@ Notes for "[2026-02-17-A-cellprofiler-stats](#modelruns2026-02-17-A-cellprofiler
      ▼
 ╭─Outputs───────────────────────────────╮
 │exp*/*/*png **                         │
-│pngs-no-nucleus-no-sources-no-smoke.tar│
 ╰───────────────────────────────────────╯
-
-╭─Inputs────────────────────────────────╮
-│plot-x25.R                             │
-│pngs-no-nucleus-no-sources-no-smoke.tar│
-│runlist-metadata.csv **                │
-╰────┰──────────────────────────────────╯
-     ┃
-     ▼
-╭─Commands─────────╮
-│Rscript plot-x25.R│
-╰────┰─────────────╯
-     ┃
-     ▼
-╭─Outputs───────────────╮
-│Uncontrolled_x25.png **│
-│Controlling_x25.png ** │
-│Sterile_x25.png **     │
-╰───────────────────────╯
 ```

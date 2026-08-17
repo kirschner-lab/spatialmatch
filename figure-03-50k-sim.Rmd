@@ -172,47 +172,144 @@ if (all(c("df_cfu", "df_flow") %in% ls())) {
 plot_time
 ```
 
-```{r plot-spatial}
+```{r prepare-ntile-25-classif}
 #| cache: true
-#| fig.width: 6.5
-#| fig.height: 2.3
-files_spatial_meta <-
-  file.path(dir_data,
-            "2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k",
-            "runlist-metadata.csv")
+#| dependson: -3
+df_classif <-
+  df_std |>
+  filter(time == max(time)) |>
+  select(-time) |>
+  pivot_wider(names_from = output, values_from = value) |>
+  ## Don't plot granulomas that immediately sterilized.
+  filter(Macrophages > 0,
+         `T cells` > 0) |>
+  group_by(classif) |>
+  mutate(log_agg = sqrt(log10(Macrophages + 1)^2 +
+                          log10(CFU + 1)^2 +
+                          log10(`T cells` + 1)^2) / 3,
+         ntile = ntile(log_agg, 25)) |>
+  group_by(classif, ntile) |>
+  slice_max(log_agg, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  print(n = Inf)
+```
+
+```{r export-ntile-25-classif}
+#| cache: true
+#| dependson: -1
+## Export runlist.
+df_classif |>
+  select(exp) |>
+  mutate(rep =
+           str_split_i(exp, fixed("."), 2L) |>
+           as.integer(),
+         exp =
+           str_split_i(exp, fixed("."), 1L) |>
+           as.integer(),
+         .after = 1L) |>
+  write_delim(file = "classif.runlist",
+              delim = " ",
+              col_names = FALSE)
+## Associated annotations.
+write_csv(df_classif, file = "classif-runlist-metadata.csv")
+```
+
+```{r suppl-figure-ntile-25-classif}
+#| cache: true
+#| dependson: -2
+#| fig.width: 8
+#| fig.height: 8
 files_spatial <-
   file.path(dir_data,
-            "2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k",
+            "2026-02-03-B-grviz-classif",
             "exp*",
             "exp*",
-            "exp*umpng") |>
+            "*.png") |>
   Sys.glob()
+for (classif_ in df_classif |>
+                   reframe(levels(classif)) |>
+                   pull()) {
+  message(classif_)
+  plot_classif <-
+    df_classif |>
+    right_join(
+      tibble(path = files_spatial,
+             exp =
+               path |>
+               str_extract(".*/exp(\\d+)-(\\d+)/.*", group = 1:2) |>
+               apply(1, str_c, collapse = ".")),
+      by = "exp") |>
+    filter(classif == classif_) %>%
+    ggplot() +
+    lims(x = c(0, 512),
+         y = c(0, 512)) +
+    theme_bw() +
+    theme(axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          spacing = unit(1, "pt"),
+          strip.background = element_blank(),
+          strip.text.x = element_blank()) +
+    coord_fixed(expand = FALSE) +
+    facet_wrap(~ ntile, ncol = 5L) +
+    geom_grob(aes(x = 256,
+                  y = 256,
+                  label = img),
+              data =
+                . %>%
+                mutate(img =
+                         path |>
+                         lapply(image_read) |>
+                         lapply(rasterGrob)),
+              vp.width = 1,
+              vp.height = 1) +
+    geom_text(aes(x = 0,
+                  y = 0,
+                  label = exp),
+              color = "white",
+              size = unit(2, "pt"),
+              hjust = -0.05,
+              vjust = -0.25)
+  print(plot_classif)
+}
+```
+
+```{r plot-spatial}
+#| cache: true
+#| dependson: -1
+#| fig.width: 6.5
+#| fig.height: 2.3
+
+## Plot grviz-lung rendered PNG images with legend thumbnails.
 files_thumbnail <-
   file.path(dir_data,
-            "2025-03-02-A-matches-spatial-x25-each-fig-2024-07-19-A-gr-50k",
+            "2026-02-03-B-grviz-classif",
             "images",
             "*.png") |>
   Sys.glob()
-
-## Plot grviz-lung rendered PNG images with legend thumbnails.
+cal_grviz <- 563.636
 plot_space <-
-  read_csv(files_spatial_meta, col_types = c(classif = "f", ntile = "i")) |>
+  df_classif |>
   right_join(
     tibble(path = files_spatial,
            ## grviz-lung fixes the calibration bar size as 1/3rd the image
            ## width.
-           cal =
-             files_spatial |>
-             basename() |>
-             str_extract("(\\d+[.]\\d+)um", group = 1) |>
-             as.numeric(),
+           cal = cal_grviz,
            exp =
-             path |>
-             basename() |>
-             str_extract("^exp(\\d+)", group = 1) |>
-             str_c(".1") |>
-             as.numeric()),
+               path |>
+               str_extract(".*/exp(\\d+)-(\\d+)/.*", group = 1:2) |>
+               apply(1, str_c, collapse = ".")),
     by = "exp") |>
+  mutate(classif =
+           fct_relevel(
+             classif,
+             "Sterile", "Controlling", "Uncontrolled")) |>
+  semi_join(tribble(~classif, ~ntile,
+                    "Sterile", 25L,
+                    "Controlling", 24L,
+                    "Uncontrolled", 12L),
+            by = c("classif", "ntile")) |>
+  arrange(classif) |>
   mutate(classif = fct_relabel(classif, function(x) {
     sprintf("%s\nCFU = %s", x, format(round(CFU), trim = TRUE, big.mark = ","))
   })) |>
@@ -232,8 +329,17 @@ plot_space <-
               . %>%
               mutate(img =
                        path |>
-                       lapply(image_read) |>
-                       lapply(rasterGrob)),
+                       lapply(FUN = function(x) {
+                         rescale <- (cal_grviz / 0.3) / 6000
+                         im <- image_read(x)
+                         info <- image_info(im)
+                         im |>
+                           image_crop(geometry = geometry_area(
+                                        width = info$width * rescale,
+                                        height = info$height * rescale),
+                                      gravity = "center") |>
+                           rasterGrob()
+                       })),
             vp.width = 1,
             vp.height = 1) +
   geom_line(data =
@@ -351,7 +457,7 @@ plot_space_legend
 ```{r figure-03-50k-sim}
 #| cache: true
 #| dependson:
-#| - -2
+#| - -5
 #| - -1
 #| fig.width: 6.5
 #| fig.height: 6
