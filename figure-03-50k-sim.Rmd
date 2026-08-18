@@ -331,7 +331,8 @@ plot_space <-
                        path |>
                        lapply(FUN = function(x) {
                          rescale <- (cal_grviz / 0.3) / 6000
-                         im <- image_read(x)
+                         ## Use higher resolution for zoomed-in image.
+                         im <- image_read(str_replace(x, ".png", "-2048.png"))
                          info <- image_info(im)
                          im |>
                            image_crop(geometry = geometry_area(
