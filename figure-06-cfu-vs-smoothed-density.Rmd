@@ -201,9 +201,43 @@ ppc_dens_overlay(y = df_sub$mtb,
   guides(color = guide_legend(override.aes = list(linewidth = 1)))
 ```
 
+```{r names-map}
+#| cache: true
+
+## Descriptive feature names.
+names_map <- c(
+  t_gams_AreaShape_MajorAxisLength_mean =
+    "IFN-γ+ T cell aggregate major-axis length",
+  macs_RadialDistribution_FracAtD_ifng_4of4_mean =
+    "Fraction of IFN-γ in outer granuloma",
+  mac_Neighbors_AngleBetweenNeighbors_60_mean =
+    "Angle between neighboring macrophages",
+  t_gams_AreaShape_MinorAxisLength_mean =
+    "IFN-γ+ T cell aggregate minor-axis length",
+  mac_Children_macs_Count_mean =
+    "1 / (Number of macrophages)",
+  t_regs_AreaShape_EquivalentDiameter_mean =
+    "Regulatory T cell aggregate diameter",
+  macs_AreaShape_MeanRadius_mean =
+    "Macrophage aggregate radius",
+  t_cyts_AreaShape_EquivalentDiameter_mean =
+    "Cytotoxic T cell aggregate diameter",
+  t_gam_Children_t_gams_Count_mean =
+    "1 / (Number of IFN-γ+ T cells)",
+  macs_RadialDistribution_FracAtD_ifng_1of4_mean =
+    "Fraction of IFN-γ at granuloma center",
+  t_cyt_Neighbors_AngleBetweenNeighbors_60_median =
+    "Angle between neighboring cytotoxic T cells",
+  ts_AreaShape_FormFactor_mean =
+    "Circularity of aggregate T cells"
+)
+```
+
 ```{r suppl-figure-corr-log-cfu}
 #| cache: true
-#| dependson: -1
+#| dependson:
+#| - -2
+#| - -1
 #| fig.width: 6.5
 #| fig.height: 9
 
@@ -212,7 +246,8 @@ df_r <-
   select(-ntile) |>
   pivot_longer(-mtb, names_to = "feature") |>
   group_by(feature) |>
-  reframe(r = cor(mtb, value))
+  reframe(r = cor(mtb, value)) |>
+  mutate(feature = names_map[feature])
 df_r
 levels <-
   tibble::deframe(df_r) |>
@@ -223,11 +258,12 @@ levels <-
 df_sub |>
   select(-ntile) |>
   pivot_longer(-mtb, names_to = "feature") |>
+  mutate(feature = names_map[feature]) |>
   mutate(mtb = expm1(mtb) * expm1(9),
          feature = fct(feature, levels)) |>
   ggplot(aes(value, mtb)) +
   theme_bw() +
-  theme(strip.text = element_text(size = 5)) +
+  theme(strip.text = element_text(size = 7)) +
   labs(
     x = "Spatial feature value",
     y = "log10(CFU)") +
@@ -252,7 +288,9 @@ df_sub |>
 
 ```{r suppl-figure-var-pred}
 #| cache: true
-#| dependson: -4
+#| dependson:
+#| - -5
+#| - -2
 #| fig.width: 6.5
 #| fig.height: 5
 
@@ -263,10 +301,14 @@ df_sub |>
       ## Reduce text angle of long feature names.
       axis.text.x = element_text(angle = 30L, hjust = 1L),
       ## Fix clipping of long feature names.
-      plot.margin = margin(l = 80),
+      plot.margin = margin(l = 50),
       ## Hide facet labels for the single ELPD facet.
       strip.background = element_blank(),
       strip.text = element_blank()) +
+    ## Relabel features.
+    scale_x_continuous(breaks = seq(length(names_map), 0),
+                       labels = function(x)
+                         ifelse(x == 0L, "(Intercept)", names_map[x])) +
     ## Higlight small changes using pseudo log10 scale.
     scale_y_continuous(trans = transform_pseudo_log(base = 10L),
                        breaks = -c(10^(0:4), 50000))
@@ -282,12 +324,17 @@ df_sub |>
 
 ```{r suppl-figure-cv}
 #| cache: true
-#| dependson: -5
+#| dependson:
+#| - -6
+#| - -3
 #| fig.width: 8.5
 #| fig.height: 3.25
 
 plot(cv_proportions(cvvs, cumulate = TRUE)) +
-  guides(fill = guide_legend(position = "top"))
+  guides(fill = guide_legend(position = "top")) +
+  ## Relabel features.
+  scale_y_discrete(labels = function(x) names_map[x],
+                   limits = rev)
 ```
 
 ```{r session-info}

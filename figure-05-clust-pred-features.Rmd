@@ -74,102 +74,37 @@ df_varsel
 
 ## Descriptive feature names.
 names_map <- c(
-  "gran_AreaShape_MajorAxisLength_mean" =
-    "Granuloma major-axis length",
-  "gran_Intensity_StdIntensity_tnf_mean" =
-    "TNF standard deviation in granuloma",
-  "mac_Intensity_IntegratedIntensityEdge_ifng_mean" =
-    "Macrophage activation signal",
   "mac_Intensity_IntegratedIntensityEdge_tnf_mean" =
-    "TNF (edge) proximal to macrophages",
+    "Mean macrophage-colocalized TNFα",
   "mac_Neighbors_AngleBetweenNeighbors_60_mean" =
     "Angle between neighboring macrophages",
-  "mac_Neighbors_NumberOfNeighbors_60_IQR" =
-    "Macrophage number of neighbors",
   "mac_Neighbors_SecondClosestDistance_60_mean" =
-    "Distance (mean) from macrophage to second-closest cell",
-  "t_gam_Neighbors_SecondClosestDistance_60_median" =
-    "Distance (median) from T cells activating macrophages to second-closest cell",
-  "gran_RadialDistribution_RadialCV_tnf_1of4_mean" =
-    "Inner granuloma macrophage activation signal",
-  ## https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.moments_central
-  "macs_AreaShape_CentralMoment_0_2_mean" =
-    "Macrophage aggregate y variance",
-  "macs_AreaShape_CentralMoment_2_0_mean" =
-    "Macrophage aggregate x variance",
+    "Mean distance from macrophage to second-closest cell",
   "macs_AreaShape_MeanRadius_mean" =
     "Macrophage aggregate radius",
   "macs_AreaShape_Perimeter_mean" =
     "Macrophage aggregate perimeter",
-  "macs_RadialDistribution_RadialCV_tnf_2of4_mean" =
-    "Inner-middle granuloma macrophage activation signal variance",
-  "macs_RadialDistribution_RadialCV_tnf_3of4_mean" =
-    "Outer-middle granuloma macrophage activation signal variance",
-  "macs_Intensity_MaxIntensity_tnf_mean" =
-    "TNF (maximum) proximal to macrophages",
-  "gran_Intensity_MeanIntensity_tnf_mean" =
-    "TNF in granuloma",
   "mac_Children_macs_Count_mean" =
     "1 / (Number of macrophages)",
   "mac_Neighbors_SecondClosestDistance_60_median" =
-    "Distance (median) from macrophage to second-closest cell",
-  "mac_Neighbors_NumberOfNeighbors_60_mean" =
-    "Macrophage mean number of neighbors",
-  "mac_Neighbors_NumberOfNeighbors_60_median" =
-    "Macrophage median number of neighbors",
-  "gran_AreaShape_MedianRadius_mean" =
-    "Granuloma median radius",
-  "macs_RadialDistribution_FracAtD_ifng_1of4_mean" =
-    "Inner granuloma macrophage activation signal",
+    "Median distance from macrophage to second-closest cell",
   "macs_RadialDistribution_FracAtD_ifng_4of4_mean" =
-    "Outer granuloma macrophage activation signal",
-  "macs_RadialDistribution_FracAtD_tnf_4of4_mean" =
-    "Outer granuloma TNF",
+    "Fraction of IFN-γ in outer granuloma",
   "t_cyts_AreaShape_EquivalentDiameter_mean" =
     "Cytotoxic T cell aggregate diameter",
   "t_cyts_Intensity_UpperQuartileIntensity_tnf_mean" =
-    "TNF proximal to cytotoxic T cells",
-  "t_gam_Location_CenterMassIntensity_X_tnf_IQR" =
-    "T cells activating macrophages x-distribution",
-  "t_gam_Location_CenterMassIntensity_Y_tnf_IQR" =
-    "T cells activating macrophages y-distribution",
-  "t_gam_Intensity_IntegratedIntensityEdge_tnf_mean" =
-    "TNF proximal to T cells activating macrophages",
-  "ts_Intensity_StdIntensity_tnf_mean" =
-    "TNF proximal to T cells",
-  "macs_Intensity_StdIntensity_tnf_mean" =
-    "TNF variation proximal to macrophages",
-  "t_gam_AreaShape_BoundingBoxMaximum_X_IQR" =
-    "T cells activating macrophages x-edges",
-  "t_gam_AreaShape_BoundingBoxMaximum_Y_IQR" =
-    "T cells activating macrophages y-edges",
+    "Cytotoxic T cells colocalized with high TNFα concentrations",
   "t_regs_AreaShape_EquivalentDiameter_mean" =
     "Regulatory T cell aggregate diameter",
   "macs_RadialDistribution_FracAtD_ifng_3of4_mean" =
-    "Mid granuloma macrophage activation signal",
-  "mac_Location_CenterMassIntensity_Y_ifng_IQR" =
-    "Macrophage activation signal distribution along y-axis",
-  "mac_Location_CenterMassIntensity_X_ifng_IQR" =
-    "Macrophage activation signal distribution along x-axis",
-  "ts_Intensity_StdIntensityEdge_tnf_mean" =
-    "TNF standard deviation at granuloma edge",
-  "mac_Neighbors_FirstClosestDistance_t_reg_60_median" =
-    "Distance from macrophage to closest regulatory T cell",
-  "ts_AreaShape_EquivalentDiameter_mean" =
-    "All T cells aggregate equivalent diameter",
+    "Fraction of IFN-γ near granuloma center",
   ## https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_euler_number.html
   "ts_AreaShape_EulerNumber_mean" =
-    "All T cells aggregate lymphcytic cuff",
-  "ts_AreaShape_FormFactor_mean" =
-    "All T cells aggregate circularity",
-  "ts_AreaShape_MeanRadius_mean" =
-    "All T cells aggregate mean radius",
-  "t_gam_Children_t_gams_Count_mean" =
-    "1 / (Number of T cells activating macrophages)",
+    "Consolidation of T cells",
   "t_gams_AreaShape_MajorAxisLength_mean" =
-    "T cells activating macrophages aggregate major-axis length",
+    "IFN-γ+ T cell aggregate major-axis length",
   "t_gams_AreaShape_MinorAxisLength_mean" =
-    "T cells activating macrophages aggregate minor-axis length"
+    "IFN-γ+ T cell aggregate minor-axis length"
 )
 ## Plot clustered heatmap.
 mat_full <-
@@ -220,7 +155,7 @@ ggheatmap(mat_full, filling = NULL) +
   ## contiguous dark tiles.
   geom_tile(aes(fill = value), color = "black", width = 0.95, height = 0.95) +
   scale_y_continuous(position = "right") +
-  labs(x = "Week",
+  labs(x = "Week (post-infection)",
        y = "Spatial feature",
        fill = "Rank") +
   ## Color-bind friendly palette.

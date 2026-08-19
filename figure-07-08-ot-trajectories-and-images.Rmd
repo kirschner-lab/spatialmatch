@@ -899,7 +899,7 @@ image_read(files_sample) |>
                             filter(sample %in% str_c("sample", samples)) |>
                             pull(classif)),
             width = 16, height = 94) +
-  labs(x = "Week",
+  labs(x = "Week (post-infection)",
        fill = "Classification") +
   scale_x_continuous(breaks = c(50, 150, 250, 400, 500, 600, 750, 850, 950),
                      labels = rep(c(4, 11, 22), times = 3)) +

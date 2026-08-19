@@ -16,15 +16,15 @@ library(ggplot2)
 #| fig.height: 5.5
 load("data/meta.rda")
 load("data/mibi_cells.rda")
-samples <-
+df_meta <-
   meta %>%
   select(sample, gran_cfu) %>%
   mutate(sample =
            sample %>%
-           str_replace("sample", "Sample ") %>%
-           fct_inorder()) %>%
+           str_replace("sample", "") %>%
+           as.integer()) %>%
   filter(gran_cfu > 0) %>%
-  pull(sample)
+  mutate(gran_cfu = format(gran_cfu, big.mark = ",", trim = TRUE))
 gr_mac <- c(
   "CD206+_Mac",
   "CD11c+_Mac",
@@ -36,9 +36,12 @@ gr_mac <- c(
 )
 df_cells <-
   mibi_cells %>%
-  mutate(sample = str_replace(sample, "sample", "Sample ")) %>%
+  mutate(sample =
+           sample %>%
+           str_replace("sample", "") %>%
+           as.integer()) %>%
   ## Only choose non-sterilizing granulomas with a single necrotic core.
-  filter(sample %in% samples) %>%
+  inner_join(df_meta, by = "sample") %>%
   mutate(agent = case_when(
     cell_type %in% gr_mac ~ "Macrophages",
     cell_type == "CD4+Tcell" ~ "CD4+ T cells",
@@ -66,8 +69,19 @@ df_cells_sub <-
 df_cells_sub %>%
   mutate(agent = factor(agent, names)) %>%
   ggplot(aes(x, y, color = agent)) +
-  facet_wrap(~ fct_reorder(sample, as.integer(str_extract(sample, "\\d+"))),
-             ncol = 6, scales = "free") +
+  facet_wrap(
+    ~ sample |>
+      as.character() |>
+      fct_inorder() |>
+      fct_relabel(function(x) {
+        sprintf("Sample %s\nCFU = %s",
+                x,
+                tibble(sample = as.integer(x)) |>
+                  left_join(df_meta, by = "sample") |>
+                  pull(gran_cfu))
+      }),
+    ncol = 6,
+    scales = "free") +
   ## Put "Other cells" at a lower Z-level.  Adding "Other cells" as the first
   ## layer moves it to the top of the legend, therefore replace the automatic
   ## layer coloring using the manual color value and then include all colors by
@@ -95,7 +109,9 @@ df_cells_sub %>%
         axis.ticks.y = element_blank(),
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        legend.text = element_text(hjust = 0)) +
+        legend.text = element_text(hjust = 0),
+        strip.text = element_text(
+          size = 7, margin = margin(0.2, 0, 0.2, 0, "lines"))) +
   labs(color = "Cell types") +
   ## Increase size of points in legend https://stackoverflow.com/a/15059196
   guides(color = guide_legend(override.aes = list(size = 5,
