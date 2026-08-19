@@ -1,0 +1,28 @@
+# Figure 4
+
+```{css, echo=FALSE}
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+```
+
+```{bash latexmk}
+#| cache: false
+#| class.output: scroll-100
+latexmk -pdflua figure-04-workflow-image-analysis.tex
+```
+
+```{r figure-04-workflow-image-analysis}
+#| cache: false
+#| include: true
+#| out.width: 100%
+#| out.height: 600pt
+knitr::include_graphics("figure-04-workflow-image-analysis.pdf")
+```
+
+```{r session-info}
+#| cache: false
+sessionInfo()
+```
