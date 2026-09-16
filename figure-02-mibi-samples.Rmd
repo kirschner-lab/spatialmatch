@@ -59,14 +59,8 @@ colors <- palette.colors(
   ## Other (O) agents not represented in GranSim should be gray.
   append("#BBBBBB")
 colors <- setNames(colors[c(6, 2, 1, 3, 5, 4, 7)], names)
-set.seed(123) # for sample_n()
-df_cells_sub <-
-  df_cells %>%
-  group_by(sample) %>%
-  sample_n(1000) %>%
-  ungroup()
 ## Plot image of binned agents.
-df_cells_sub %>%
+df_cells %>%
   mutate(agent = factor(agent, names)) %>%
   ggplot(aes(x, y, color = agent)) +
   facet_wrap(
@@ -74,7 +68,7 @@ df_cells_sub %>%
       as.character() |>
       fct_inorder() |>
       fct_relabel(function(x) {
-        sprintf("Sample %s\nCFU = %s",
+        sprintf("S%s; %s CFU",
                 x,
                 tibble(sample = as.integer(x)) |>
                   left_join(df_meta, by = "sample") |>
@@ -87,12 +81,14 @@ df_cells_sub %>%
   ## layer coloring using the manual color value and then include all colors by
   ## tweaking subsequent layers with show.legend = TRUE and drop = FALSE per
   ## https://stackoverflow.com/q/33765710/#comment138836891_33765825
-  geom_point(data = . %>% filter(agent == "Other cells"), size = 0.5,
+  ##
+  ## Choosing size = 0 uses the smallest point size allowed.
+  geom_point(data = . %>% filter(agent == "Other cells"), size = 0,
              color = colors["Other cells"]) +
-  geom_point(data = . %>% filter(agent != "Other cells"), size = 0.5,
+  geom_point(data = . %>% filter(agent != "Other cells"), size = 0,
              show.legend = TRUE) +
   geom_line(data =
-              df_cells_sub |>
+              df_cells |>
               group_by(sample) |>
               reframe(across(x:y, range)) |>
               group_by(sample) |>
@@ -101,6 +97,9 @@ df_cells_sub %>%
                       y = quantile(y, 0.05) + c(0, 0)),
             aes(color = NULL)) +
   scale_color_manual(values = colors, drop = FALSE) +
+  ## Remove padding around data on the axes.
+  scale_x_continuous(expand = c(0L, 0L)) +
+  scale_y_continuous(expand = c(0L, 0L)) +
   theme_bw() +
   theme(aspect.ratio = 1,
         axis.text.x = element_blank(),
@@ -110,8 +109,10 @@ df_cells_sub %>%
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         legend.text = element_text(hjust = 0),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         strip.text = element_text(
-          size = 7, margin = margin(0.2, 0, 0.2, 0, "lines"))) +
+          size = 6.5, margin = margin(0.2, 0, 0.2, 0, "lines"))) +
   labs(color = "Cell types") +
   ## Increase size of points in legend https://stackoverflow.com/a/15059196
   guides(color = guide_legend(override.aes = list(size = 5,
