@@ -33,6 +33,8 @@ files_size <-
       full.names = TRUE) %>%
   ## Sort file names numerically.
   .[order(as.numeric(str_extract(., "size_week(.+)[.]txt", group = 1)))]
+stopifnot(length(files_rank) > 0)
+stopifnot(length(files_size) > 0)
 
 ## Read in the ordered predictive variables.
 df_ord <-

@@ -226,6 +226,7 @@ files_spatial <-
             "exp*",
             "*.png") |>
   Sys.glob()
+stopifnot(length(files_spatial) > 0L)
 for (classif_ in df_classif |>
                    reframe(levels(classif)) |>
                    pull()) {
@@ -287,6 +288,7 @@ files_thumbnail <-
             "images",
             "*.png") |>
   Sys.glob()
+stopifnot(length(files_thumbnail) > 0L)
 cal_grviz <- 563.636
 plot_space <-
   df_classif |>
@@ -331,8 +333,7 @@ plot_space <-
                        path |>
                        lapply(FUN = function(x) {
                          rescale <- (cal_grviz / 0.3) / 6000
-                         ## Use higher resolution for zoomed-in image.
-                         im <- image_read(str_replace(x, ".png", "-2048.png"))
+                         im <- image_read(x)
                          info <- image_info(im)
                          im |>
                            image_crop(geometry = geometry_area(

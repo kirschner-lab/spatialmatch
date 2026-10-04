@@ -36,6 +36,9 @@ file_rank <-
             "2026-02-17-A-cellprofiler-stats",
             "05-r-varsel-output",
             "rank_week22.csv")
+stopifnot(fs::file_exists(file_stats))
+stopifnot(fs::file_exists(file_features))
+stopifnot(fs::file_exists(file_rank))
 ## Prepare the df containing both the mtb output and predictors.
 df_stats <-
   read_csv(zstdfile(file_stats),

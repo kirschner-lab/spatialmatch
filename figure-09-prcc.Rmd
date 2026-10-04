@@ -26,6 +26,7 @@ files_prcc <-
   file.path(dir_data,
             "2026-02-17-A-cellprofiler-stats",
             str_c("06-prcc_ot_", files_type, "_9.mat"))
+stopifnot(all(fs::file_exists(files_prcc)))
 read_prcc <- function(path) {
   ## Run PRCC for all outcomes.
   h5 <- H5File$new(path, mode = "r")

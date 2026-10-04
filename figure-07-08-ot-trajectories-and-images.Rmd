@@ -123,8 +123,8 @@ file_elpd <-
             "rank_week11.csv")
 file_mibi <-
   file.path(dir_data,
-            "2024-09-17-A-mibi-data-oneshot",
-            "output-combined",
+            "2026-02-17-A-cellprofiler-stats",
+            "02-cellprofiler-output-combined-mibi",
             "week11.csv")
 file_gs <-
   file.path(dir_data,
@@ -145,6 +145,12 @@ file_rank_size <-
             "2026-02-17-A-cellprofiler-stats",
             "05-r-varsel-output",
             "size_week22.txt")
+stopifnot(fs::file_exists(file_elpd))
+stopifnot(fs::file_exists(file_mibi))
+stopifnot(fs::file_exists(file_gs))
+stopifnot(fs::file_exists(file_gs_traj))
+stopifnot(fs::file_exists(file_rank))
+stopifnot(fs::file_exists(file_rank_size))
 ## The CSV file has long lines; the default 2^17 buffer is insufficient.
 Sys.setenv(VROOM_CONNECTION_SIZE = 2^19)
 cols_gs_all <-
@@ -561,7 +567,8 @@ df_with_ot %>%
 ## Import TIFF images generated using the data-raw/merge.ijm ImageJ script.
 dir_im_gransim <-
   file.path(dir_data, "2026-02-17-A-cellprofiler-stats", "img_stacks")
-dir_im_mibi <- file.path(dir_data, "2024-07-19-A-gr-50k", "img_stacks_mibi")
+dir_im_mibi <-
+  file.path(dir_data, "2024-02-17-A-cellprofiler-stats", "img_stacks_mibi")
 ## Add file paths to each dataset.
 df_im <-
   df_with_ot %>%
