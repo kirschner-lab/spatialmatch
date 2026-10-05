@@ -1,13 +1,8 @@
-\documentclass{article}
+\documentclass[tikz,border=3pt]{standalone}
 
 \usepackage{libertinus}         % Font
 \usepackage{unicode-math}       % Font for math
 \setmathfont[Scale=MatchUppercase]{libertinusmath-regular.otf}
-\usepackage[
-pdftex,
-active,
-tightpage
-]{preview}
 \usepackage{tikz}
 \usetikzlibrary{
   arrows.meta,                  % -Stealth
@@ -20,10 +15,9 @@ tightpage
 }
 \usepackage{upgreek}            % \upgamma
 \usepackage{graphicx}
-\graphicspath{{~/modelruns/2025-05-16-A-fig-cp-workflow/img/}}
+\graphicspath{{data-raw/im-cp-workflow/}}
 
 \begin{document}
-\begin{preview}
   \begin{tikzpicture}[
     font = \sffamily,
     im/.style = {
@@ -172,7 +166,6 @@ tightpage
     \path ([yshift = 1mm] ag-c.north) -- (ag-c.north) [arr];
     \path ([yshift = 1mm] lbl-result.north) -- (lbl-result.north) [arr];
   \end{tikzpicture}
-\end{preview}
 \end{document}
 
 % Local Variables:

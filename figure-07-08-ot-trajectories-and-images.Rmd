@@ -568,7 +568,7 @@ df_with_ot %>%
 dir_im_gransim <-
   file.path(dir_data, "2026-02-17-A-cellprofiler-stats", "img_stacks")
 dir_im_mibi <-
-  file.path(dir_data, "2024-02-17-A-cellprofiler-stats", "img_stacks_mibi")
+  file.path(dir_data, "2026-02-17-A-cellprofiler-stats", "img_stacks_mibi")
 ## Add file paths to each dataset.
 df_im <-
   df_with_ot %>%

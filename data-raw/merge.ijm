@@ -9,7 +9,7 @@ dir_inputs = newArray(
 dir_input = replace(dir_inputs[img_type], "~", home);
 dir_outputs = newArray(
 	"~/modelruns/2026-02-17-A-cellprofiler-stats/img_stacks",
-	"~/modelruns/2024-07-19-A-gr-50k/img_stacks_mibi");
+	"~/modelruns/2024-02-17-A-cellprofiler-stats/img_stacks_mibi");
 dir_output = replace(dir_outputs[img_type], "~", home);
 calibrations = newArray(0.02, 0.001);
 calibration = calibrations[img_type];

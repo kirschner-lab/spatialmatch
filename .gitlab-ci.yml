@@ -1,0 +1,38 @@
+---
+stages:
+  - build
+  - deploy
+
+build-job:
+  stage: build
+  image: bioconductor/bioconductor_docker:latest
+  script:
+    # Download the archived input data to generate the figures.
+    - wget -q -O ~/modelruns.zip 'https://zenodo.org/records/23122873/files/modelruns.zip?download=1'
+    # Unpack the zip file.
+    - unzip -q -d ~ ~/modelruns.zip
+    # Install R dependencies.
+    - Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
+    # Install LaTeX dependencies as needed.
+    - Rscript -e 'pak::pkg_install("tinytex"); tinytex::install_tinytex(bundle = "TinyTeX-2")'
+    - Rscript -e 'tinytex::latexmk("figure-04-workflow-image-analysis.tex", engine = "lualatex")'
+    # Make LaTeX binaries available to bookdown.
+    - export PATH=~/bin:$PATH
+    # Report RAM usage, etc. of the bookdown build.
+    - apt update && sudo apt -y install time
+    # Run the RMarkdown files and save output to the default website directory.
+    - command time -v Rscript -e 'bookdown::render_book(output_dir = "public")'
+  artifacts:
+    name: build-artifacts
+    paths:
+      - public/
+
+create-pages:
+  stage: deploy
+  pages: true
+  script:
+    # The stage won't run without a "script" tag; simply list the files.
+    - find public -type f
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  environment: production
