@@ -1,17 +1,17 @@
 # Figure 4
 
-```{css, echo=FALSE}
-.scroll-100 {
-  max-height: 100px;
-  overflow-y: auto;
-  background-color: inherit;
-}
-```
-
-```{bash latexmk}
+```{r latexmk}
 #| cache: false
-#| class.output: scroll-100
-latexmk -pdflua figure-04-workflow-image-analysis.tex
+file_latex_src <- "figure-04-workflow-image-analysis.tex"
+## Ignore any build failures if the LaTeX environemnt is not setup.  The
+## environment either requires an existing LaTeX system installation that we
+## treat as an optional requirement or sizeable files installed into the home
+## directory that a typical end user may not want.
+try(
+  tinytex::latexmk(
+    file = file_latex_src,
+    engine = "lualatex",
+    install_packages = FALSE))
 ```
 
 ```{r figure-04-workflow-image-analysis}
@@ -19,7 +19,19 @@ latexmk -pdflua figure-04-workflow-image-analysis.tex
 #| include: true
 #| out.width: 100%
 #| out.height: 600pt
-knitr::include_graphics("figure-04-workflow-image-analysis.pdf")
+file_latex_pdf <- "figure-04-workflow-image-analysis.pdf"
+if (fs::file_exists(file_latex_pdf)) {
+  knitr::include_graphics(file_latex_pdf)
+}
+```
+
+```{r latex-log}
+#| cache: false
+file_latex_log <- "figure-04-workflow-image-analysis.log"
+## Show the full LaTeX log for troubleshooting if there was any build error.
+if (fs::file_exists(file_latex_log)) {
+  cat(readr::read_lines(file_latex_log), sep = "\n")
+}
 ```
 
 ```{r session-info}

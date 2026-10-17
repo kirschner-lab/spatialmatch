@@ -13,9 +13,8 @@ build-job:
     - unzip -q -d ~ ~/modelruns.zip
     # Install R dependencies.
     - Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
-    # Install LaTeX dependencies as needed.
-    - Rscript -e 'pak::pkg_install("tinytex"); tinytex::install_tinytex(bundle = "TinyTeX-2")'
-    - Rscript -e 'tinytex::latexmk("figure-04-workflow-image-analysis.tex", engine = "lualatex")'
+    # Install the optional LaTeX dependencies.
+    - Rscript -e 'tinytex::install_tinytex(bundle = "TinyTeX-2")'
     # Make LaTeX binaries available to bookdown.
     - export PATH=~/bin:$PATH
     # Report RAM usage, etc. of the bookdown build.
