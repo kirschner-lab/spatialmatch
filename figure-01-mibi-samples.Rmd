@@ -1,4 +1,4 @@
-# Figure 2
+# Figure 1
 
 ```{r imports}
 #| cache: false
@@ -10,7 +10,7 @@ library(forcats)
 library(ggplot2)
 ```
 
-```{r figure-02-mibi-samples}
+```{r figure-01-mibi-samples}
 #| cache: true
 #| fig.width: 6.5
 #| fig.height: 5.5

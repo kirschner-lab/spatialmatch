@@ -1,0 +1,22 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: spatialmatch
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Pariksheet
+    family-names: Nanda
+    email: pnanda@umich.edu
+    affiliation: University of Michigan
+    orcid: 'https://orcid.org/0000-0001-9726-4552'
+identifiers:
+  - type: doi
+    value: 10.64898/2026.10.09.758083
+    description: bioRxiv preprint
+repository-code: 'https://github.com/kirschner-lab/spatialmatch'
+url: 'https://omsai.gitlab.io/spatialmatch'
+license: Apache-2.0

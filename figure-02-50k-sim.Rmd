@@ -1,4 +1,4 @@
-# Figure 3
+# Figure 2
 
 > **_NOTE:_** This plot omits the non-human primate CFU and flowcytometry data
 > scatter plot layer shown in the publication because we do not have permission
@@ -456,7 +456,7 @@ plot_space_legend <-
 plot_space_legend
 ```
 
-```{r figure-03-50k-sim}
+```{r figure-02-50k-sim}
 #| cache: true
 #| dependson:
 #| - -5

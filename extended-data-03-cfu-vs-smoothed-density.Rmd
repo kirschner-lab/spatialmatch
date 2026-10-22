@@ -1,4 +1,4 @@
-# Figure 6
+# Extended Data 3
 
 ```{r imports}
 #| cache: false
@@ -162,7 +162,7 @@ tibble(
   print(n = Inf)
 ```
 
-```{r figure-06-cfu-vs-smoothed-density}
+```{r extended-data-03-cfu-vs-smoothed-density}
 #| cache: true
 #| dependson: -2
 #| fig.width: 6.5

@@ -4,16 +4,18 @@ css: style.css
 author: Pariksheet Nanda
 date: "`r Sys.Date()`"
 github-repo: kirschner-lab/spatialmatch
-url: 'https\://bookdown.org/kirschner-lab/spatialmatch/'
+url: 'https\://omsai.gitlab.io/spatialmatch/'
 ---
 
 # Preface {-}
 
 ```{asis, echo=!knitr::is_latex_output()}
 This is supplementary code
-for a research manuscript
 that is freely available online
-and licensed under
+at [kirschner-lab/spatialmatch](https://github.com/kirschner-lab/spatialmatch)
+for a research manuscript preprint
+on [bioRxiv](https://doi.org/10.64898/2026.10.09.758083)
+and the code is under
 the [Apache-2.0 license](https://opensource.org/license/apache-2-0).
 If you have any feedback,
 please feel free to

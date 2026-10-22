@@ -10,11 +10,9 @@
   inputs and library imports by using RMarkdown's knit and merge
   approach[^fn1].
   
-- Although beyond the scope of this reproducible code repository, some
-  supplementary figures are created alongside the results figures where
-  convenient.  The workflow overview figures 1 and 4 are also beyond the scope
-  because they do not involve code: figure 1 was created using BioRender.com
-  and figure 4 was created using LaTeX.
+- All extended data and supplementary figures are created alongside the results
+  figures.  The workflow overview in extended data 1 is not present here
+  because it was created using [BioRender.com][biorender].
 
 - Download the input data[^fn2].
 
@@ -32,8 +30,8 @@
   bookdown::render_book()
   ```
 
-  The above workflow has been tested on Ubuntu 24.10 GNU/Linux, Windows 11, and
-  macOS 15.3.
+  The above workflow has been tested on Ubuntu 24.10--26.04 GNU/Linux, Windows
+  11, and macOS 15.3--26.7
 
 - An additional download contains the job submission scripts that generate the
   input data.  However, these scripts are fairly specific to the compute
@@ -41,6 +39,25 @@
   compute hours to complete and are, therefore, intended as reference rather
   than being part of a practical, fully-reproducible workflow.
 
+- If you need to cite this work, see the `CITATION.cff` and the associated
+  preprint:
+
+    ```bib
+    @article {Nanda2026.10.09.758083,
+    	author = {Nanda, Pariksheet and McCaffrey, Erin F. and Michael, Christian T. and Delmastro, Alea C. and Michael, Gabrielle and Mattila, Joshua T. and Flynn, JoAnne L. and Angelo, R. Michael and Kirschner, Denise},
+    	title = {A tissue time machine to forward-predict single-timepoint data applied to tuberculosis granulomas},
+    	elocation-id = {2026.10.09.758083},
+    	year = {2026},
+    	doi = {10.64898/2026.10.09.758083},
+    	publisher = {Cold Spring Harbor Laboratory},
+    	abstract = {Recent advances have improved understanding of infection; however many detailed datasets are based on single timepoints post-infection and cannot generate longitudinal insights needed to predict infection outcomes. For example, pulmonary infection with Mycobacterium tuberculosis (Mtb) initiates a complex system of immune and bacterial interactions that leads to granuloma formation, yet single snapshots in time need elaboration long-term. We develop a new approach, the tissue time machine, applied to predict outcomes of non-human primate granulomas from initiation to endpoint using single timepoint tissue datasets including high-dimensional spatial features. This involves identifying granuloma digital partners, simulations most closely resembling real granulomas from a virtual library of over 50,000. By analyzing digital partners, we predict infection outcomes of 22/28 granulomas, and that Mtb-specific, IFN-γ-producing T cell recruitment rates influence uncertainty for the 6/28. This method is applicable to any system that allows for mechanistic predictions over time using heterogeneous, incomplete, and high-dimensional datasets.Competing Interest StatementThe authors have declared no competing interest.NIH Common Fund, https://ror.org/001d55x84, R01 AI50684, F31 AI191425, NIH S10 OD026825Wellcome Leap Delta Tissue Program},
+    	URL = {https://www.biorxiv.org/content/early/2026/10/12/2026.10.09.758083},
+    	eprint = {https://www.biorxiv.org/content/early/2026/10/12/2026.10.09.758083.full.pdf},
+    	journal = {bioRxiv}
+    }
+    ```
+
+[biorender]: <https://biorender.com>
 [^fn1]: Knit then merge (K-M) approach
     <https://bookdown.org/yihui/bookdown/new-session.html>
 [^fn2]: Simulation and processed data input for publication figures
@@ -49,4 +66,4 @@
 [^fn3]: Purdue University's Anvil cluster (primarily), San Diego Supercomputer
     Center's Expanse cluster, and the University of Michigan's Lighthouse and
     Great Lakes clusters (these latter non-Purdue clusters were only used to
-    split up running the 50,000 GranSim simulations).
+    split up running the 60,000 GranSim simulations).

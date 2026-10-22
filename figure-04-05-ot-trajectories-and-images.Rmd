@@ -1,4 +1,4 @@
-# Figures 7 and 8
+# Figures 4 and 5
 
 ```{r imports}
 #| cache: false
@@ -483,7 +483,7 @@ mat_cost |>
   labs(y = NULL)
 ```
 
-```{r figure-07-ot-trajectories}
+```{r figure-04-ot-trajectories}
 #| cache: true
 #| dependson: -2
 #| fig.width: 6.5
@@ -828,7 +828,7 @@ df_ot_indeterminate |>
               col_names = FALSE)
 ```
 
-```{r figure-08-ot-images}
+```{r figure-05-ot-images}
 #| cache: true
 #| dependson:
 #| - -4

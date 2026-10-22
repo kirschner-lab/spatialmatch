@@ -1,8 +1,8 @@
-# Figure 4
+# Extended Data 2
 
 ```{r latexmk}
 #| cache: false
-file_latex_src <- "figure-04-workflow-image-analysis.tex"
+file_latex_src <- "extended-data-02-workflow-image-analysis.tex"
 ## Ignore any build failures if the LaTeX environemnt is not setup.  The
 ## environment either requires an existing LaTeX system installation that we
 ## treat as an optional requirement or sizeable files installed into the home
@@ -14,12 +14,12 @@ try(
     install_packages = FALSE))
 ```
 
-```{r figure-04-workflow-image-analysis}
+```{r extended-data-02-workflow-image-analysis}
 #| cache: false
 #| include: true
 #| out.width: 100%
 #| out.height: 600pt
-file_latex_pdf <- "figure-04-workflow-image-analysis.pdf"
+file_latex_pdf <- "extended-data-02-workflow-image-analysis.pdf"
 if (fs::file_exists(file_latex_pdf)) {
   knitr::include_graphics(file_latex_pdf)
 }
@@ -27,7 +27,7 @@ if (fs::file_exists(file_latex_pdf)) {
 
 ```{r latex-log}
 #| cache: false
-file_latex_log <- "figure-04-workflow-image-analysis.log"
+file_latex_log <- "extended-data-02-workflow-image-analysis.log"
 ## Show the full LaTeX log for troubleshooting if there was any build error.
 if (fs::file_exists(file_latex_log)) {
   cat(readr::read_lines(file_latex_log), sep = "\n")
