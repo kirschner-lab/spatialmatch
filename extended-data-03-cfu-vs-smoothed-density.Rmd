@@ -128,7 +128,7 @@ system.time({
     refm_obj,
     cv_method = "kfold",
     cvfits = cv_fits,
-    verbose = TRUE
+    verbose = 4
   )
 })
 
