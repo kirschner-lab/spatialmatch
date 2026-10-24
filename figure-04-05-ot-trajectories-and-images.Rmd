@@ -932,7 +932,7 @@ image_read(files_sample) |>
 #| fig.width: 2
 #| fig.height: 2
 
-## Unbalanced optimal transport plot for Figure 1.
+## Unbalanced optimal transport plot for Extended Data 1.
 df_pairs |>
   filter(loop == 1L) |>
   arrange(lb) |>

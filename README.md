@@ -1,69 +1,712 @@
-# Overview {-}
+# Overview
 
 <!-- badges: start -->
+[![gitlab pages](https://img.shields.io/badge/pages-live-blue)](https://omsai.gitlab.io/spatialmatch)
+[![pipeline status](https://gitlab.com/omsai/spatialmatch/badges/main/pipeline.svg)](https://gitlab.com/omsai/spatialmatch/-/pipelines)
+[![bioRxiv](https://img.shields.io/badge/bioRxiv-preprint-B31B1B)](https://doi.org/10.64898/2026.10.09.758083)
+[![Data DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15102620.svg)](https://doi.org/10.5281/zenodo.15102620)
+[![HPC artifacts DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23626060.svg)](https://doi.org/10.5281/zenodo.23626060)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 <!-- badges: end -->
 
-- This repository contains RMarkdown documents to reproduce the results figures
-  for a research publication.  Each figure is self-contained with explicit
-  inputs and library imports by using RMarkdown's knit and merge
-  approach[^fn1].
-  
-- All extended data and supplementary figures are created alongside the results
-  figures.  The workflow overview in extended data 1 is not present here
-  because it was created using [BioRender.com][biorender].
+This repository contains RMarkdown documents to reproduce the results figures
+and supplemental figures for the Tissue Time Machine procedure, specifically
+for the manuscript "A tissue time machine to forward-predict single-timepoint
+data applied to tuberculosis granulomas".  Each RMarkdown (*.Rmd) file
+generates one or more figures and the code in each RMarkdown file is
+self-contained with explicit inputs and library imports by using the [knit and
+merge approach](https://bookdown.org/yihui/bookdown/new-session.html).  All
+extended data and supplementary figures are created alongside the results
+figures.  The workflow overview in extended data 1 is not present here because
+it was created using [BioRender.com](https://biorender.com).  The workflow has
+been tested on Ubuntu 24.10--26.04 GNU/Linux, Windows 11, and macOS 15.3--26.7.
 
-- Download the input data[^fn2].
+## Quickstart
 
-- To recreate the figures code, if necessary, edit the `config.R` file in the
-  `R` subdirectory with the path to your downloaded data directory, then run
-  these R commands to install the dependencies and then build the RMarkdown
-  book:
+> [!TIP]
+> The output of this code is available to view at
+> <https://omsai.gitlab.io/spatialmatch> and is syncronized to render exactly
+> this version of the code using continuous integration.
 
-  ```r
-  ## Install the dependencies:
-  install.packages("pak")
-  pak::local_install_deps(dependencies = TRUE)
+To reproduce this work:
 
-  ## Build the RMarkdown book:
-  bookdown::render_book()
-  ```
+1. Download the Zenodo data ([DOI
+   10.5281/zenodo.15102621](https://zenodo.org/records/15102620)).
 
-  The above workflow has been tested on Ubuntu 24.10--26.04 GNU/Linux, Windows
-  11, and macOS 15.3--26.7
+1. To recreate the figures, if necessary, edit the `config.R` file in the `R`
+   subdirectory with the path to your downloaded data directory, then run these
+   R commands to install the dependencies and then build the RMarkdown book or
+   single RMarkdown files for specific figures of interest:
 
-- An additional download contains the job submission scripts that generate the
-  input data.  However, these scripts are fairly specific to the compute
-  clusters[^fn3] on which they were run and require over a quarter million
-  compute hours to complete and are, therefore, intended as reference rather
-  than being part of a practical, fully-reproducible workflow.
+    ```r
+    ## Install the dependencies:
+    install.packages("pak")
+    pak::local_install_deps(dependencies = TRUE)
 
-- If you need to cite this work, see the `CITATION.cff` and the associated
-  preprint:
-
-    ```bib
-    @article {Nanda2026.10.09.758083,
-    	author = {Nanda, Pariksheet and McCaffrey, Erin F. and Michael, Christian T. and Delmastro, Alea C. and Michael, Gabrielle and Mattila, Joshua T. and Flynn, JoAnne L. and Angelo, R. Michael and Kirschner, Denise},
-    	title = {A tissue time machine to forward-predict single-timepoint data applied to tuberculosis granulomas},
-    	elocation-id = {2026.10.09.758083},
-    	year = {2026},
-    	doi = {10.64898/2026.10.09.758083},
-    	publisher = {Cold Spring Harbor Laboratory},
-    	abstract = {Recent advances have improved understanding of infection; however many detailed datasets are based on single timepoints post-infection and cannot generate longitudinal insights needed to predict infection outcomes. For example, pulmonary infection with Mycobacterium tuberculosis (Mtb) initiates a complex system of immune and bacterial interactions that leads to granuloma formation, yet single snapshots in time need elaboration long-term. We develop a new approach, the tissue time machine, applied to predict outcomes of non-human primate granulomas from initiation to endpoint using single timepoint tissue datasets including high-dimensional spatial features. This involves identifying granuloma digital partners, simulations most closely resembling real granulomas from a virtual library of over 50,000. By analyzing digital partners, we predict infection outcomes of 22/28 granulomas, and that Mtb-specific, IFN-γ-producing T cell recruitment rates influence uncertainty for the 6/28. This method is applicable to any system that allows for mechanistic predictions over time using heterogeneous, incomplete, and high-dimensional datasets.Competing Interest StatementThe authors have declared no competing interest.NIH Common Fund, https://ror.org/001d55x84, R01 AI50684, F31 AI191425, NIH S10 OD026825Wellcome Leap Delta Tissue Program},
-    	URL = {https://www.biorxiv.org/content/early/2026/10/12/2026.10.09.758083},
-    	eprint = {https://www.biorxiv.org/content/early/2026/10/12/2026.10.09.758083.full.pdf},
-    	journal = {bioRxiv}
-    }
+    ## Build the entire RMarkdown book:
+    bookdown::render_book()
+    ## Or limit to an RMarkdown file name, such as Figure 1:
+    bookdown::preview_chapter("figure-01-mibi-samples.Rmd")
     ```
 
-[biorender]: <https://biorender.com>
-[^fn1]: Knit then merge (K-M) approach
-    <https://bookdown.org/yihui/bookdown/new-session.html>
-[^fn2]: Simulation and processed data input for publication figures
-    generated by the spatialmatch R package
-    <https://zenodo.org/records/15102620>
-[^fn3]: Purdue University's Anvil cluster (primarily), San Diego Supercomputer
-    Center's Expanse cluster, and the University of Michigan's Lighthouse and
-    Great Lakes clusters (these latter non-Purdue clusters were only used to
-    split up running the 60,000 GranSim simulations).
+Although not required to reproduce the figures, the high-performance computing
+(HPC) artifacts that generates the input data used for all figures is provided
+in an additional Zenodo HPC artifacts download ([DOI
+10.5281/zenodo.23626060](https://zenodo.org/records/23626060)).  This includes
+all artifacts to reproduce the 60,000 simulations for the virtual library.
+However, these scripts are specifically configured for the HPC clusters on
+which they were run and require nearly one million compute hours to complete
+and are, therefore, intended as reference rather than being part of a
+practical, fully-reproducible workflow.  The clusters used were Purdue
+University's "Anvil" cluster, San Diego Supercomputer Center's "Expanse"
+cluster, and the University of Michigan's "Lighthouse" and "Great Lakes"
+clusters.
+
+## Files associated with specific figures
+
+- Figure 1 is generated by `figure-01-mibi-samples.Rmd`.
+- Figure 2 is generated by `figure-02-50k-sim.Rmd`.
+- Figure 3 is generated by `figure-03-clust-pred-features.Rmd`.
+- Figure 4 and Figure 5 are each generated by
+  `figure-04-05-ot-trajectories-and-images.Rmd`.
+   - Optimal transport is computed in several steps, but comments in
+     `figure-04-05-ot-trajectories-and-images.Rmd` indicate which code chunks
+     correspond to equations 1--4 in the manuscript.
+   - Silverman's estimate for identifying CDPs is computed as the R variable
+     `bw`.
+   - The code for LASSO and Bayesian variable selection are in `varsel.R` and
+     are included in the Zenodo HPC artifacts.
+- Figure 6 is generated by `figure-06-prcc.Rmd`
+
+## HPC environment
+
+- The following describes the computer cluster files and directories required
+  to generate simulations and subsequent analyses, which appear in the
+  Zenodo HPC artifacts.
+
+- We organize our simulations and analyses on computer clusters within
+  dedicated "model-run" directories prefixed with the creation date in ISO-8601
+  format and capital letters distinguishing directories created on the same
+  date.  The research work associated with this manuscript is organized into
+  such model-run directories.
+
+- We provide flowcharts to describe the intent and scope of each model-run
+  directory with corresponding input files, command-line programs, and key
+  output files. However, to improve legibility, not all output files, such as
+  diagnostic files, are indicated in flowcharts or provided.
+
+- Command-line interface (CLI) programs in the flowcharts consist of work from
+  the Kirschner laboratory (with CLI executable names) applicable public URLs
+  and descriptions as follows:
+
+   - Latin hypercube sampler (`lhs`)
+      - C++ program, which takes input a single parameter-range XML input file
+        and generates fixed-parameter XML output files,
+   - GranSim (`gr`) GranSim visualization (`grviz-lung`)
+     <http://malthus.micro.med.umich.edu/GranSim/>
+      - C++ core model of GranSim, which takes inputs a fixed-parameter XML
+        file and generates model outputs.
+   - SLURM job submission wrapper for GranSim (`lhssubmit-job-array`)
+      - In-house SLURM job submission wrapper for GranSim for submitting many
+        simulations in parallel on a high-performance computing cluster.
+   - Concatenate summary statistics from GranSim (`make-lhs-prcc.py`)
+      - In-house Python script for exporting output from multiple GranSim
+        simulations into a single concatenated table for PRCC analysis.
+   - Uncertainty and sensitivity analysis for GranSim (`lhsPrccFromCsv.m`)
+      - In-house MATLAB script for using the single concatenated table to
+        perform PRCC analysis.
+   - GranSim TIFF image exporter (`gransimg`)
+     <https://github.com/kirschner-lab/gransimg>
+      - C program that exports GranSim output files into TIFF images for
+        compatibility with CellProfiler.
+   - PNG export GranSim visualization wrapper (`state2png.py`)
+      - In-house Python script to export PNG files by running the GranSim
+        Visualization program.
+
+  ... as well as 3rd party software (with CLI executable names) and public
+  URLs:
+
+   - CellProfiler (`cellprofiler`) <https://cellprofiler.org>
+   - Clustershell (`nodeset`) <https://clustershell.github.io/clustershell/>
+   - FIJI is Just ImageJ (`ImageJ2`) <https://fiji.sc>
+   - GNU Make (`make`) <https://www.gnu.org/software/make/>
+   - MATLAB programming language (`matlab`)
+     <https://www.mathworks.com/products/matlab.html>
+   - Ninja (`ninja`) <https://ninja-build.org>
+   - GNU Parallel (`parallel`) <https://www.gnu.org/software/parallel/>
+   - Python programming language (`python`) <https://www.python.org>
+   - GNU R programming language (`R`, `Rscript`) <https://www.r-project.org>
+   - SingularityCE / Apptainer (`singularity`, `apptainer`)
+     <https://sylabs.io/singularity/> <https://apptainer.org>
+      - Singularity is superceded by the Linux Foundation project Apptainer
+        that allows building containers without root permissions.
+   - Spack supercomputing package manager (`spack`) <https://spack.io>
+      - To process GranSim TIFF image inputs, the CellProfiler CLI is also
+        installed into the Spack environment and run from there, but for
+        MIBI-TOF, CellProfiler is only run from the CellPrpofiler graphical
+        interface.
+   - Miscellaneous utilities are provided by operating system packages or
+     cluster environmental modules (`bash`, `make`, `patch`, `sbatch`, `tar`,
+     `xdotool`, `zip`, `zstd`).
+
+- In the flowcharts, files with no symbol at the end of them indicates that
+  they are included with the Zenodo HPC artifacts.  A `**` symbol after files indicate
+  they are instead already provided with the Zenodo data, or in this GitHub
+  repository under the `data-raw/` directory.  However, a single `*` symbol
+  after files or programs indicates that they are not provided either because
+  (1) the files are created as intermediates that may be large in size and
+  their final processed output are instead provided or (1) the program cannot
+  be provide due to license restrictions or the need to recompile them from
+  source.
+
+- All model-run directories were executed on HPC clusters that use the SLURM
+  job scheduler.  In general any job involving CellProfiler or CellProfiler
+  output was memory limited, otherwise jobs were comptue limited.  Memory
+  limited jobs were run on nodes with 256 GB RAM; calculations and
+  optimizations to prevent high memory loads from crashing the job are
+  contained and documented within the `*.sbatch` job submission scripts.
+  Except for `modelruns/2026-02-03-A-gr-20k-3rep`, all model-runs use the U-M
+  Lighthouse cluster.  Most jobs are embarrassingly parallel serial CPU jobs
+  run without MPI, or GPUs, or any requirement for special network topology or
+  high-speed interconnect on large clusters.
+
+   - `modelruns/2026-02-03-A-gr-20k-3rep` had the highest CPU need for 60,000
+     simulations (20,000 samples x 3 replicates) and therefore also used the
+     Purdue Anvil and U-M Great Lakes clusters.
+
+   - `modelruns/2026-02-03-B-grviz-classif` also used a personal computer
+     running Debian 13 Linux to use `xdotool` for automation of `grviz-lung`.
+
+## HPC flowcharts of model-run directories
+
+We used the following workflow to generate the input data for each of the
+RMarkdown files.  The input of these workflows are the contents of the Zenodo
+HPC artifacts and the output of these workflows are the contents of the Zenodo
+data files.  Most of this code is to generate and create associated datasets of
+the virtual granuloma library and is thus strictly upstream of the analysis of
+those datasets and the associated manuscript figures.  The exceptions are those
+cases where we display representative granulomas (Figure 2 and Figure 5) that
+require us to we first identify granuloma IDs using the `R` code and then
+retrieve them from the virtual granuloma library.
+
+### `modelruns/2026-02-03-A-gr-20k-3rep`
+
+This model-run directory runs the GranSim granuloma simulations.
+
+Sample parameters using LHS to output GranSim parameters:
+
+```uniline
+╭─Inputs─────────────────────────────────╮
+│lhs *                                   │
+│baseline_200_host_param_ranges_grans.xml│
+╰────┰───────────────────────────────────╯
+     ┃
+     ▼
+╭─Command─────────────────────────────────────╮
+│lhs \                                        │
+│  -s 123 \                                   │
+│  -n 20000 \                                 │
+│  -i baseline_200_host_param_ranges_grans.xml│
+╰────┰────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Outputs────────╮
+│{1..20000}.xml *│
+╰────────────────╯
+```
+
+Run GranSim simulations so that each input XML parameter set is run as 3
+replicates that thus generates 3 output CSV files:
+
+```uniline
+╭─Inputs────────────────────╮
+│lhssubmit-job-array *      │
+│gr *                       │
+│lung-model-options-short.sh│
+│{1..20000}.xml *           │
+╰────┰──────────────────────╯
+     ┃
+     ▼
+╭─Command───────────────────────╮
+│lhssubmit-job-array \          │
+│  ./gr 1 20000 1 3 096:00:00 \ │
+│  lung-model-options-short.sh 1│
+╰────┰──────────────────────────╯
+     ┃
+     ▼
+╭─Outputs───────────────╮
+│exp{1..20000}/*/*.csv *│
+╰───────────────────────╯
+```
+
+Concatenate GranSim outputs into a single file for PRCC analysis:
+
+```uniline
+╭─Inputs─────────────────────────────────╮
+│sbatch *                                │
+│make-lhs-prcc-7d-interval.sbatch        │
+│python3 *                               │
+│make-lhs-prcc.py *                      │
+│baseline_200_host_param_ranges_grans.xml│
+│{1..20000}.xml *                        │
+│exp{1..20000}/*/*.csv *                 │
+│output_fields.csv                       │
+╰────┰───────────────────────────────────╯
+     ┃
+     ▼
+╭─Command───────────────────────────────╮
+│sbatch make-lhs-prcc-7d-interval.sbatch│
+╰────┰──────────────────────────────────╯
+     ┃
+     ▼
+╭─Outputs──────────────────────────────────────╮
+│output-lhs-7d-interval-stat-cols-10.csv.zst **│
+╰──────────────────────────────────────────────╯
+```
+
+### `modelruns/2026-02-03-B-grviz-classif`
+
+This model-run directory generates detailed visualization image files for
+Figure 2B and Suppl. Figure 2--Suppl. Figure 4.
+
+Export GranSim state files for subsequent visualization:
+
+```uniline
+╭─Inputs──────────────────────╮
+│lhssubmit-job-array-runlist *│
+│gr *                         │
+│lung-model-options-short.sh  │
+│*.xml *                      │
+│classif.runlist *            │
+╰────┰────────────────────────╯
+     ┃
+     ▼
+╭─Command──────────────────────────╮
+│lhssubmit-job-array-runlist \     │
+│  ./gr classif.rulist 096:00:00 \ │
+│  lung-model-options-short.sh 1   │
+╰────┰─────────────────────────────╯
+     ┃
+     ▼
+╭─Outputs───────────╮
+│exp*/*/*.state.gz *│
+╰───────────────────╯
+```
+
+Patch to compile GranSim visualization on Debian 13 Qt libraries by setting
+`QT5_BOOST_LIB=/usr/lib/x86_64-linux-gnu` and `QT5_BOOST_INCLUDE=/usr/include`:
+
+```uniline
+╭─Inputs────────────╮
+│patch *            │
+│grviz-pro.patch    │
+│grviz.pro *        │
+╰────┰──────────────╯
+     ┃
+     ▼
+╭─Command───────────────────────────╮
+│pushd ~/immunology/GR-ABM-ODE-9599/│
+│patch -p0 < grviz.pro              │
+│popd                               │
+╰────┰──────────────────────────────╯
+     ┃
+     ▼
+╭─Outputs───╮
+│grviz.pro *│
+╰───────────╯
+```
+
+Export PNG files of detailed granulomas:
+
+```uniline
+╭─Inputs────────────╮
+│python3 *          │
+│state2png.py       │
+│grviz-lung *       │
+│xdotool *          │
+│exp*/*/*.state.gz *│
+│.config            │
+╰────┰──────────────╯
+     ┃
+     ▼
+╭─Command────╮
+│state2png.py│
+╰────┰───────╯
+     ┃
+     ▼
+╭─Outputs──────╮
+│exp*/*/*png **│
+╰──────────────╯
+```
+
+### `modelruns/2026-02-17-A-cellprofiler-stats`
+
+This model-run directory uses CellProfiler and R to perform GranSim spatial
+analysis.
+
+Install the programs needed to run this workflow:
+
+```uniline
+╭─Inputs────────────────╮
+│sbatch *               │
+│00-spack-install.sbatch│
+│spack *                │
+│spack.yaml             │
+╰────┰──────────────────╯
+     ┃
+     ▼
+╭─Command──────────────────────╮
+│sbatch 00-spack-install.sbatch│
+╰────┰─────────────────────────╯
+     ┃
+     ▼
+╭─Outputs───────────────────────────╮
+│cellprofiler *                     │
+│parallel *                         │
+│meson *                            │
+│ninja *                            │
+│nodeset (from py-clustershell) *   │
+│../2026-02-17-B-spack-buildcache/ *│
+│spack.lock                         │
+╰───────────────────────────────────╯
+```
+
+Compile `gransimg` to export GranSim outputs to TIFF files:
+
+```uniline
+╭─Inputs─────────────────╮
+│01-gransimg-install.bash│
+│bash *                  │
+│spack *                 │
+│meson *                 │
+│ninja *                 │
+╰────┰───────────────────╯
+     ┃
+     ▼
+╭─Command──────────────────╮
+│./01-gransimg-install.bash│
+╰────┰─────────────────────╯
+     ┃
+     ▼
+╭─Outputs─────────────────╮
+│gransimg-build/gransimg *│
+╰─────────────────────────╯
+```
+
+Use the graphical CellProfiler program to export the pipeline file; necessary
+for using command-line `cellprofiler`:
+
+```uniline
+╭─Inputs─────────────╮
+│cellprofiler (GUI) *│
+│gransim.cpproj      │
+╰────┰───────────────╯
+     ┃
+     ▼
+╭─Command──────────╮
+│cellprofiler (GUI)│
+╰────┰─────────────╯
+     ┃
+     ▼
+╭─Outputs──────╮
+│gransim.cppipe│
+╰──────────────╯
+```
+
+Run CellProfiler image processing (see `gransim.cpproj` for details):
+
+```uniline
+╭─Inputs────────────────────────────────────────────╮
+│sbatch *                                           │
+│02-cellprofiler.sbatch                             │
+│gransimg *                                         │
+│nodeset *                                          │
+│cellprofiler *                                     │
+│parallel *                                         │
+│../2026-02-03-A-gr-20k-3rep/exp{1..20000}/*/seed * │
+│../2026-02-03-A-gr-20k-3rep/exp{1..20000}/*/*.csv *│
+│../2026-02-03-A-gr-20k-3rep/*.xml *                │
+│gransim.cppipe                                     │
+│tar *                                              │
+│zstd *                                             │
+╰────┰──────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command─────────────────────╮
+│sbatch 02-cellprofiler.sbatch│
+╰────┰────────────────────────╯
+     ┃
+     ▼
+╭─Outputs───────────────────────────────────────────────────────────╮
+│02-cellprofiler-joblogs/week{1..22}-rep{1..3}.joblog *             │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/cp/*.csv *          │
+│02-cellprofiler-output/week{1..22}-rep{1..3}-unsummarized.tar.zst *│
+╰───────────────────────────────────────────────────────────────────╯
+```
+
+Build the container to analyze CellProfiler output in R:
+
+```uniline
+╭─Inputs────────────────╮
+│make *                 │
+│Makefile.caret         │
+│singularity *          │
+│caret.def              │
+│caret-install-methods.R│
+╰────┰──────────────────╯
+     ┃
+     ▼
+╭─Command──────────────╮
+│make -f Makefile.caret│
+╰────┰─────────────────╯
+     ┃
+     ▼
+╭─Outputs───╮
+│caret.sif *│
+╰───────────╯
+```
+
+Run the container generated above to summarize CellProfiler raw output for
+downstream analysis:
+
+```uniline
+╭─Inputs──────────────────────────────────────────────────╮
+│sbatch *                                                 │
+│03-r-summarize.sbatch                                    │
+│nodeset *                                                │
+│parallel *                                               │
+│caret.sif *                                              │
+│apptainer *                                              │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/cp/*.csv *│
+│tar *                                                    │
+│zstd *                                                   │
+╰────┰────────────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command────────────────────╮
+│sbatch 03-r-summarize.sbatch│
+╰────┰───────────────────────╯
+     ┃
+     ▼
+╭─Outputs─────────────────────────────────────────────────────────╮
+│03-r-summarize-joblogs/week{1..22}-rep{1..3}.joblog *            │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/{im,obj}.csv *    │
+│02-cellprofiler-output/week{1..22}-rep{1..3}-uncombined.tar.zst *│
+╰─────────────────────────────────────────────────────────────────╯
+```
+
+Run LASSO linear regressions to create the per-week feature summaries for
+Figure 3:
+
+```uniline
+╭─Inputs──────────────────────────────────────────────────────╮
+│sbatch *                                                     │
+│04-r-combine.sbatch                                          │
+│caret.sif *                                                  │
+│apptainer *                                                  │
+│02-cellprofiler-output/week{1..22}-rep{1..3}/*/{im,obj}.csv *│
+╰────┰────────────────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command──────────────────╮
+│sbatch 04-r-combine.sbatch│
+╰────┰─────────────────────╯
+     ┃
+     ▼
+╭─Outputs─────────────────────────────────────────╮
+│02-cellprofiler-output-combined/week{1..22}.csv *│
+╰─────────────────────────────────────────────────╯
+```
+
+Build the container for Bayesian variable selection:
+
+```uniline
+╭─Inputs────────╮
+│make *         │
+│Makefile.varsel│
+│singularity *  │
+│varsel.def     │
+╰────┰──────────╯
+     ┃
+     ▼
+╭─Command─────────────────╮
+│make -f Makefile.varsel *│
+╰────┰────────────────────╯
+     ┃
+     ▼
+╭─Outputs────╮
+│varsel.sif *│
+╰────────────╯
+```
+
+Run Bayesian variable selection:
+
+```uniline
+╭─Inputs──────────────────────────────────────────╮
+│05-r-varsel.sbatch                               │
+│varsel.sif *                                     │
+│varsel.R                                         │
+│singularity *                                    │
+│output-lhs-7d-interval-stat-cols-10.csv **       │
+│02-cellprofiler-output-combined/week{1..22}.csv *│
+╰────┰────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command──────────╮
+│05-r-varsel.sbatch│
+╰────┰─────────────╯
+     ┃
+     ▼
+╭─Outputs──────────────────────────────────╮
+│05-r-varsel-output/size_week{1..22}.txt **│
+│05-r-varsel-output/rank_week{1..22}.csv **│
+╰──────────────────────────────────────────╯
+```
+
+Export OT-matched sets to run the PRCC:
+
+```uniline
+╭─Inputs───────────────────────────────────────────────────────────────────╮
+│Rscript *                                                                 │
+│figure-04-05-ot-trajectories-and-images.Rmd **                            │
+│02-cellprofiler-output-combined-mibi/week11.csv **                        │
+│../2026-02-03-A-gr-20k-3rep/output-lhs-7d-interval-stat-cols-10.csv.zst **│
+│02-cellprofiler-output-combined/week11.csv.zst **                         │
+│05-r-varsel-output/size_week22.txt **                                     │
+│05-r-varsel-output/rank_week{11,22}.csv **                                │
+╰────┰─────────────────────────────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command─────────────────────────────────────────────────────────────────────────────╮
+│Rscript -e 'bookdown::preview_chapter("figure-04-05-ot-trajectories-and-images.Rmd")'│
+╰────┰────────────────────────────────────────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Outputs───────╮
+│ot.runlist **  │
+│ot-3.runlist **│
+│ot-3.csv **    │
+╰───────────────╯
+```
+
+Run the PRCC for Figure 6:
+
+```uniline
+╭─Inputs─────────────────────────────────────────────────────────────╮
+│sbatch *                                                            │
+│06-ot-prcc.sbatch                                                   │
+│../2026-02-03-A-gr-20k-3rep/output_fields.csv *                     │
+│../2026-02-03-A-gr-20k-3rep/output-lhs-7d-interval-stat-cols-*.csv *│
+│ot.runlist **                                                       │
+│varsel.sif *                                                        │
+│matlab *                                                            │
+│lhsPrccFromCsv.m *                                                  │
+╰────┰───────────────────────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command────────────────╮
+│sbatch 06-ot-prcc.sbatch│
+╰────┰───────────────────╯
+     ┃
+     ▼
+╭─Outputs───────────╮
+│06-prcc_ot_9.mat **│
+╰───────────────────╯
+```
+
+Export the OT-matched TIFF images for Figure 5.
+
+```uniline
+╭─Inputs────────────────────────────────────────────╮
+│06-ot-3-gransimg-gr.bash                           │
+│bash *                                             │
+│gransimg *                                         │
+│parallel *                                         │
+│tar *                                              │
+│zstd *                                             │
+│zip *                                              │
+│../2026-02-03-A-gr-20k-3rep/1-20000.xml.tar.zst *  │
+│../2026-02-03-A-gr-20k-3rep/exp{1..20000}/*/seed * │
+│../2026-02-03-A-gr-20k-3rep/exp{1..20000}/*/*.csv *│
+│../2026-02-03-A-gr-20k-3rep/*.xml *                │
+│ot-3.runlist **                                    │
+│ot-3.csv **                                        │
+╰────┰──────────────────────────────────────────────╯
+     ┃
+     ▼
+╭─Command──────────────────╮
+│./06-ot-3-gransimg-gr.bash│
+╰────┰─────────────────────╯
+     ┃
+     ▼
+╭─Outputs──────────────────╮
+│06-ot-3-gransimg-gr.zip **│
+╰──────────────────────────╯
+```
+
+Combine GranSim outputs using the graphical program FIJI (`ImageJ2`) into
+merged colorized TIFF files for visualization.
+
+```uniline
+╭─Inputs───────────────────╮
+│ImageJ2 *                 │
+│merge.ijm **              │
+│06-ot-3-gransimg-gr.zip **│
+╰────┰─────────────────────╯
+     ┃
+     ▼
+╭─Command╮
+│ImageJ2 │
+╰────┰───╯
+     ┃
+     ▼
+╭─Outputs───────────╮
+│img_stacks/*.tif **│
+╰───────────────────╯
+```
+
+Combine MIBI-TOF images using the graphical program FIJI (`ImageJ2`) into
+merged colorized TIFF files for visualization.
+
+```uniline
+╭─Inputs─────────╮
+│ImageJ2 *       │
+│merge.ijm **    │
+│img_mibi/*.tif *│
+╰────┰───────────╯
+     ┃
+     ▼
+╭─Command╮
+│ImageJ2 │
+╰────┰───╯
+     ┃
+     ▼
+╭─Outputs────────────────╮
+│img_stacks_mibi/*.tif **│
+╰────────────────────────╯
+```
+
+Additional notes for the above workflows run in the
+`modelruns/2026-02-17-A-cellprofiler-stats` directory:
+
+- The CellProfiler project files `gransim.cpproj` and equivalent `mibi.cpproj`
+  files are archived on in-house server at the subversion directory
+  `/gr2d/GR-ABM-ODE/simulation/scripts/calibration/mibi/data-raw/`
+- To export a CellProfiler project (`.cpproj` file) into a CellProfiler
+  pipeline (`*.cppipe` file) to run on a cluster, in the CellProfiler graphical
+  interface, click on `File > Export > Pipeline...`.  Only `gransim.cpproj` was
+  exported the `gransim.cppipe` file in this way, because the MIBI-TOF project
+  was run from the CellProfiler graphical program because of the fewer images.
+- To run the `cellprofiler` CLI on the cluster, it was installed into a `spack`
+  environment.
+- The `../2026-02-17-B-spack-buildcache/` directory is an archival binary cache
+  to redeploy subsequent `spack` package installations on the same operating
+  system and CPU architecture without rebuilding them from source.
+- `apptainer` and `singularity` are the same program; Apptainer was renamed
+  from Singularity by the Linux Foundation.
+- Building the `caret.sif` and `varsel.sif` Singularity images requires root
+  access for older versions of Singularity; therefore, this typically means
+  running the root command on a machine other than a shared HPC cluster.  Root
+  access is no longer required for Apptainer, so you could use Apptainer
+  instead of Singularity to simplify building these images but this approach
+  has not been tested for this research project.

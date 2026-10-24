@@ -1,3 +1,23 @@
-#header {
-    display: none;
+.book .book-body .page-wrapper .page-inner section.normal code {
+    /* Monospace unicode fonts suggested by
+       https://github.com/tbanel/uniline#which-fonts */
+    font-family:
+	'DejaVu Sans Mono',
+	'Unifont',
+	'Hack',
+	'JetBrains Mono',
+	'Cascadia Mono',
+	'Agave',
+	'JuliaMono',
+	'FreeMono',
+	'Iosevka Comfy Fixed',
+	'Iosevka Comfy Wide Fixed',
+	'Aporetic Sans Mono',
+	'Aporetic Serif Mono',
+	'Source Code Pro',
+	monospace;
+}
+
+.uniline {
+    line-height: 1;
 }

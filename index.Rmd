@@ -1,24 +1,24 @@
 ---
 title: Spatial Matching Figures and Code
+subtitle: 'git version `r system2("git", c("describe", "--always", "--dirty=-*"), stdout = TRUE)`'
 css: style.css
 author: Pariksheet Nanda
-date: "`r Sys.Date()`"
+date: '`r system2("git", c("log", "-1", "--format=%ad", "--date=format:%Y-%m-%d"), stdout = TRUE)`'
 github-repo: kirschner-lab/spatialmatch
 url: 'https\://omsai.gitlab.io/spatialmatch/'
+output:
+  bookdown::gitbook:
+    number_sections: false
 ---
 
-# Preface {-}
+# Preface
 
 ```{asis, echo=!knitr::is_latex_output()}
 This is supplementary code
 that is freely available online
-at [kirschner-lab/spatialmatch](https://github.com/kirschner-lab/spatialmatch)
+at [github.com/kirschner-lab/spatialmatch](https://github.com/kirschner-lab/spatialmatch)
 for a research manuscript preprint
 on [bioRxiv](https://doi.org/10.64898/2026.10.09.758083)
 and the code is under
 the [Apache-2.0 license](https://opensource.org/license/apache-2-0).
-If you have any feedback,
-please feel free to
-[file an issue on GitHub](https://github.com/kirschner-lab/spatialmatch/issues/new).
-Thank you!
 ```
